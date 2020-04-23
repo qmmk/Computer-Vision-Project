@@ -21,7 +21,7 @@ while (True):
     ret, frame = cap.read()
     rects = {}
 
-    if ret == True:
+    if ret:
 
         src = utils.otsu(frame)
 
@@ -39,33 +39,27 @@ while (True):
             if w > 150 and h > 150:
                 hull = cv2.convexHull(i)
                 hull_list.append(hull)
+                vertex = cv2.approxPolyDP(i, 0.009 * cv2.arcLength(i, True), True)
                 ''' 
-                vertex = cv2.approxPolyDP(i,0.009 * cv2.arcLength(i, True), True)
                 for j in vertex:
                     cv2.circle(frame, tuple(j[0]),3,(255,0,0),-1)
                 '''
-        #cv2.drawContours(frame, hull_list, -1, (0, 0, 255))
+        # cv2.drawContours(frame, hull_list, -1, (0, 0, 255))
 
-        masks = []
         outs = []
+        masks = []
         for i in range(len(hull_list)):
-            mask = np.zeros_like(frame)  # Create mask where white is what we want, black otherwise
-            cv2.drawContours(mask, hull_list, i, color, -1)  # Draw filled contour in mask
-            out = np.zeros_like(frame)  # Extract out the object and place into output image
-            out[mask == 255] = frame[mask == 255]
+            outs = utils.image_crop(frame, hull_list, i)
 
-            # Now crop
-            (y, x, z) = np.where(mask == 255)
-            (topy, topx) = (np.min(y), np.min(x))
-            (bottomy, bottomx) = (np.max(y), np.max(x))
-            out = out[topy:bottomy + 1, topx:bottomx + 1]
-            outs.append(out)
+            for idx in range(len(outs)):
+                hist = utils.compute_histogram(outs[idx])
+                entropy = utils.entropy(hist)
+                pts = np.squeeze(vertex, axis=1)
+                if entropy >= 5:
+                    # rectification 
+                    warped = utils.rectify_image(outs[i], pts)
 
-        for idx in range(len(outs)):
-            hist = utils.compute_histogram(outs[idx])
-            entropy = utils.entropy(hist)
-            if entropy >= 5:
-                cv2.imshow(str(i), outs[i])
+                    cv2.imshow(str(i), warped)
 
         k = cv2.waitKey(5) & 0xFF
         if k == ord("q"):
