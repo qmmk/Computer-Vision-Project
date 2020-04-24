@@ -32,14 +32,14 @@ while (True):
         conts, heirarchy = cv2.findContours(src, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
         hull_list = []
-
+        vertex = []
         for i in conts:
             rect = cv2.boundingRect(i)
             x, y, w, h = rect
             if w > 150 and h > 150:
                 hull = cv2.convexHull(i)
                 hull_list.append(hull)
-                vertex = cv2.approxPolyDP(i, 0.009 * cv2.arcLength(i, True), True)
+                vertex.append(cv2.approxPolyDP(i, 0.009 * cv2.arcLength(i, True), True))
                 ''' 
                 for j in vertex:
                     cv2.circle(frame, tuple(j[0]),3,(255,0,0),-1)
@@ -54,11 +54,10 @@ while (True):
             for idx in range(len(outs)):
                 hist = utils.compute_histogram(outs[idx])
                 entropy = utils.entropy(hist)
-                pts = np.squeeze(vertex, axis=1)
+                pts = np.squeeze(vertex[i], axis=1)
                 if entropy >= 5:
-                    # rectification 
+                    # rectification
                     warped = utils.rectify_image(outs[i], pts)
-
                     cv2.imshow(str(i), warped)
 
         k = cv2.waitKey(5) & 0xFF
