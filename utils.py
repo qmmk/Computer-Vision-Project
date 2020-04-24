@@ -38,7 +38,7 @@ def compute_histogram(img):
     return histogram
 
 
-# function for Shannon's Entropy    
+# function for Shannon's Entropy
 def entropy(histogram):
     histogram = histogram[histogram > 0]
     return -np.sum(histogram * np.log2(histogram))
@@ -46,8 +46,48 @@ def entropy(histogram):
 
 kernel = np.ones((3, 3), np.uint8)
 kernel2 = np.ones((5, 5), np.uint8)
+kernel7 = np.ones((7, 7), np.uint8)
+
 g_kernel = cv2.getGaborKernel((25, 25), 6.5, np.pi / 4, 10.0, 0.5, 0, ktype=cv2.CV_32F)
 color = (255, 255, 255)
+
+def hybrid_edge_detection(frame):
+    gray_no_blur = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    gray = cv2.GaussianBlur(gray_no_blur, (5, 5), cv2.BORDER_DEFAULT)
+    gray = cv2.GaussianBlur(gray, (15, 15), cv2.BORDER_DEFAULT)
+
+    gabor = cv2.filter2D(gray, cv2.CV_8UC3, g_kernel)
+
+    edges_canny = cv2.Canny(gray_no_blur, 100, 200)
+
+    # adaptive
+    #edges = cv2.adaptiveThreshold(gabor, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    edges = cv2.bitwise_not(gabor)
+
+
+    # morpho
+    opening = cv2.morphologyEx(edges, cv2.MORPH_OPEN, kernel)
+    dilatation_out = cv2.dilate(opening, kernel7, iterations=3)
+
+    #morpho_canny
+    #opening = cv2.morphologyEx(edges_canny, cv2.MORPH_OPEN, kernel)
+    dilatation_out_canny = cv2.dilate(edges_canny, kernel2, iterations=5)
+
+
+    ret, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    #erode = cv2.erode(thresh, kernel2, iterations=1)
+
+
+    img_bwa = cv2.bitwise_and(thresh, dilatation_out)
+
+    #img_bwa = cv2.bitwise_or(dilatation_out, dilatation_out_canny)
+
+
+    img_bwa = cv2.erode(img_bwa, kernel2, iterations=2)
+    img_bwa = cv2.erode(img_bwa, kernel, iterations=7)
+    img_bwa = cv2.dilate(img_bwa, kernel7, iterations=2)
+
+    return img_bwa
 
 
 class ColourBounds:
@@ -122,6 +162,8 @@ def image_crop(frame, hull_list, i):
 
     # Now crop
     (y, x, z) = np.where(mask == 255)
+    #(y, x) = np.where(mask == 255)
+
     (topy, topx) = (np.min(y), np.min(x))
     (bottomy, bottomx) = (np.max(y), np.max(x))
     out = out[topy:bottomy + 1, topx:bottomx + 1]
@@ -183,3 +225,25 @@ def rectify_image(image, pts):
     warped = cv2.warpPerspective(image, M, (maxWidth, maxHeight))
     # return the warped image
     return warped
+
+def getLine(edges,frame):
+    # get contours
+
+    minLineLength = 100
+
+    lines = cv2.HoughLines(edges, 1, np.pi / 180, 200)
+    if lines is None:
+        return
+
+
+    for rho, theta in lines[0]:
+        a = np.cos(theta)
+        b = np.sin(theta)
+        x0 = a * rho
+        y0 = b * rho
+        x1 = int(x0 + 1000 * (-b))
+        y1 = int(y0 + 1000 * (a))
+        x2 = int(x0 - 1000 * (-b))
+        y2 = int(y0 - 1000 * (a))
+
+        cv2.line(frame, (x1, y1), (x2, y2), (255, 255, 255), 2)
