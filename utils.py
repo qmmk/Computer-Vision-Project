@@ -1,6 +1,6 @@
 import numpy as np
 import cv2
-
+from PIL import Image
 
 # input: img --> 2D or 3D array
 # output: histogram normalized
@@ -49,6 +49,7 @@ kernel2 = np.ones((5, 5), np.uint8)
 kernel7 = np.ones((7, 7), np.uint8)
 
 g_kernel = cv2.getGaborKernel((25, 25), 6.5, np.pi / 4, 10.0, 0.5, 0, ktype=cv2.CV_32F)
+#g_kernel = cv2.getGaborKernel((30, 30), 6.5, np.pi / 4, 8.0, 0.5, 0, ktype=cv2.CV_32F)
 color = (255, 255, 255)
 
 def hybrid_edge_detection(frame):
@@ -63,7 +64,6 @@ def hybrid_edge_detection(frame):
     # adaptive
     #edges = cv2.adaptiveThreshold(gabor, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
     edges = cv2.bitwise_not(gabor)
-
 
     # morpho
     opening = cv2.morphologyEx(edges, cv2.MORPH_OPEN, kernel)
@@ -170,6 +170,22 @@ def image_crop(frame, hull_list, i):
     outs.append(out)
     return outs
 
+def image_crop_bin(frame, hull_list, i):
+    outs = []
+    mask = np.zeros_like(frame)  # Create mask where white is what we want, black otherwise
+    cv2.drawContours(mask, hull_list, i, color, -1)  # Draw filled contour in mask
+    out = np.zeros_like(frame)  # Extract out the object and place into output image
+    out[mask == 255] = frame[mask == 255]
+
+    # Now crop
+    (y, x) = np.where(mask == 255)
+
+    (topy, topx) = (np.min(y), np.min(x))
+    (bottomy, bottomx) = (np.max(y), np.max(x))
+    out = out[topy:bottomy + 1, topx:bottomx + 1]
+    outs.append(out)
+    return outs
+
 
 def order_points(pts):
     # initialzie a list of coordinates that will be ordered
@@ -231,11 +247,22 @@ def getLine(edges,frame):
 
     minLineLength = 100
 
-    lines = cv2.HoughLines(edges, 1, np.pi / 180, 200)
+    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=100,minLineLength=100,maxLineGap=50)
     if lines is None:
         return
 
+    N=lines.shape[0]
+    for i in range(N):
+        x1 = lines[i][0][0]
+        y1 = lines[i][0][1]
+        x2 = lines[i][0][2]
+        y2 = lines[i][0][3]
 
+        cv2.line(frame, (x1, y1), (x2, y2), (255, 255, 255), 2)
+
+    '''
+    lines = cv2.HoughLines(edges, 1, np.pi / 180, 200)
+    
     for rho, theta in lines[0]:
         a = np.cos(theta)
         b = np.sin(theta)
@@ -245,5 +272,22 @@ def getLine(edges,frame):
         y1 = int(y0 + 1000 * (a))
         x2 = int(x0 - 1000 * (-b))
         y2 = int(y0 - 1000 * (a))
-
         cv2.line(frame, (x1, y1), (x2, y2), (255, 255, 255), 2)
+    '''
+
+
+def add_margin(img, lr, tp, bin=False):
+    h, w = img.shape[0:2]
+    if bin:
+        base_size = h + lr * 2, w + tp * 2
+
+        base = np.zeros(base_size, dtype=np.uint8)
+        cv2.rectangle(base, (0, 0), (w + lr * 2, h + tp * 2), (0), 30)  # really thick white rectangle
+        base[tp:h + tp, lr:w + lr] = img  # this works
+    else:
+        base_size = h + lr*2, w + tp*2, 3
+
+        base = np.zeros(base_size, dtype=np.uint8)
+        cv2.rectangle(base, (0, 0), (w + lr*2, h + tp*2), (0, 0, 0), 30)  # really thick white rectangle
+        base[tp:h + tp, lr:w + lr] = img  # this works
+    return base

@@ -17,6 +17,10 @@ out = cv2.VideoWriter('outpy.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 3
 
 # global used variable
 color = (255, 255, 255)
+kernel = np.ones((3,3),np.uint8)
+kernel2 = np.ones((5,5),np.uint8)
+kernel3 = np.ones((7,7),np.uint8)
+
 
 while (True):
     ret, frame = cap.read()
@@ -47,34 +51,49 @@ while (True):
                 # creo contorni da dare alla funzione getline e un frame nero
                 cv2.drawContours(src_mask, [hull], 0, (255, 255, 255), -1)
                 canny = cv2.Canny(src_mask, 20, 200,apertureSize = 3)
-
                 utils.getLine(canny,houges)
 
-                ''' 
-                for j in vertex:
-                    cv2.circle(frame, tuple(j[0]),3,(255,0,0),-1)
                 '''
-        #cv2.imshow('im', canny)
-        cv2.imshow('imh', houges)
+                for j in vertex:
+                    print(j[0].shape)
+                    cv2.circle(houges, tuple(np.squeeze(j[0], axis=0)),10,(100, 0, 0),-1)
+                '''
+
+        #cv2.imshow('im', src_mask)
+        #cv2.imshow('canny', canny)
+        #cv2.imshow('imh', houges)
+        #cv2.imshow('cont_h', conts_h)
 
         outs = []
         masks = []
 
         for i in range(len(hull_list)):
             outs = utils.image_crop(frame, hull_list, i)
-
+            outs_bin = utils.image_crop_bin(src_mask, hull_list, i)
 
             for idx in range(len(outs)):
 
                 hist = utils.compute_histogram(outs[idx])
                 entropy = utils.entropy(hist)
-                pts = np.squeeze(vertex[i], axis=1)
-                print(entropy)
+                #pts = np.squeeze(vertex[i], axis=1)
                 if entropy >= 1:
-                    #cv2.imshow(str(i), outs[idx])
+                    outs_bin[idx] = utils.add_margin(outs_bin[idx], 10,10, bin=True)
+                    outs[idx] = utils.add_margin(outs[idx], 10, 10)
+
+                    dst = cv2.cornerHarris(outs_bin[idx], 2, 3, 0.02)
+                    dst = cv2.dilate(dst, None)
+                    ret, dst = cv2.threshold(dst, 0.1 * dst.max(), 255, 0)
+                    dst = np.uint8(dst)
+                    ret, labels, stats, centroids = cv2.connectedComponentsWithStats(dst)
+                    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.001)
+                    corners = cv2.cornerSubPix(houges, np.float32(centroids), (5, 5), (-1, -1), criteria)
+                    corners = np.around(corners)
+                    outs[idx][dst > 0.01 * dst.max()] = [0, 0, 255]
+
+                    cv2.imshow(str(i), outs[idx])
                     # rectification
-                    warped = utils.rectify_image(outs[idx], pts)
-                    cv2.imshow(str(i), warped)
+                    warped = utils.rectify_image(outs[idx], corners)
+                    cv2.imshow(str(i)+"_warp", warped)
                     
 
 
