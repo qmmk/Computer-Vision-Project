@@ -1,12 +1,15 @@
 import cv2
 import numpy as np
 import utils
+import time
 
 video_stronzo = './videos/VIRB0391.MP4'
 video_normale = './videos/VIRB0414.MP4'
 video_tondo = './videos/GOPR2051.MP4'
 video_comune = './videos/VIRB0407.MP4'
-cap = cv2.VideoCapture(video_comune)
+video_madonna_bimbo = './videos/VIRB0392.MP4'
+
+cap = cv2.VideoCapture(video_madonna_bimbo)
 
 if (cap.isOpened() == False):
     print("Unable to read camera feed")
@@ -20,6 +23,8 @@ color = (255, 255, 255)
 kernel = np.ones((3,3),np.uint8)
 kernel2 = np.ones((5,5),np.uint8)
 kernel3 = np.ones((7,7),np.uint8)
+
+lista_titoli, lista_immagini = utils.carica_lista_cvs()
 
 
 while (True):
@@ -53,11 +58,7 @@ while (True):
                 canny = cv2.Canny(src_mask, 20, 200,apertureSize = 3)
                 utils.getLine(canny,houges)
 
-                '''
-                for j in vertex:
-                    print(j[0].shape)
-                    cv2.circle(houges, tuple(np.squeeze(j[0], axis=0)),10,(100, 0, 0),-1)
-                '''
+
 
         #cv2.imshow('im', src_mask)
         #cv2.imshow('canny', canny)
@@ -66,35 +67,92 @@ while (True):
 
         outs = []
         masks = []
+        cannys = []
+
 
         for i in range(len(hull_list)):
-            outs = utils.image_crop(frame, hull_list, i)
-            outs_bin = utils.image_crop_bin(src_mask, hull_list, i)
+            outs.append(utils.image_crop(frame, hull_list, i))
+            masks.append(utils.image_crop_bin(src_mask, hull_list, i))
 
-            for idx in range(len(outs)):
+        for idx in range(len(outs)):
+            #cv2.imshow(str(idx), outs[idx])
+            hist = utils.compute_histogram(outs[idx])
+            entropy = utils.entropy(hist)
 
-                hist = utils.compute_histogram(outs[idx])
-                entropy = utils.entropy(hist)
-                #pts = np.squeeze(vertex[i], axis=1)
-                if entropy >= 1:
-                    outs_bin[idx] = utils.add_margin(outs_bin[idx], 10,10, bin=True)
-                    outs[idx] = utils.add_margin(outs[idx], 10, 10)
+            if entropy >= 3:
+                imm = masks[idx][0]
+                out_bin_pad = cv2.copyMakeBorder(imm,20,20,20,20,0)
+                out_imm_pad = cv2.copyMakeBorder(outs[idx],20,20,20,20,0)
 
-                    dst = cv2.cornerHarris(outs_bin[idx], 2, 3, 0.02)
-                    dst = cv2.dilate(dst, None)
-                    ret, dst = cv2.threshold(dst, 0.1 * dst.max(), 255, 0)
-                    dst = np.uint8(dst)
-                    ret, labels, stats, centroids = cv2.connectedComponentsWithStats(dst)
-                    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.001)
-                    corners = cv2.cornerSubPix(houges, np.float32(centroids), (5, 5), (-1, -1), criteria)
-                    corners = np.around(corners)
-                    outs[idx][dst > 0.01 * dst.max()] = [0, 0, 255]
+                corners = cv2.goodFeaturesToTrack(out_bin_pad,4,0.4,80)
+                corners = np.int0(corners)
+                print(np.squeeze(corners, axis=1).shape)
 
-                    cv2.imshow(str(i), outs[idx])
-                    # rectification
-                    warped = utils.rectify_image(outs[idx], corners)
-                    cv2.imshow(str(i)+"_warp", warped)
-                    
+                if corners is not None:
+                    for i in corners:
+
+                        x,y = i.ravel()
+                        cv2.circle(out_imm_pad,(x,y),3,255,-1)
+
+                if len(corners) == 4:
+                    corners = np.squeeze(corners, axis=1)
+                    warped = utils.rectify_image(out_imm_pad, corners)
+                    warped = cv2.copyMakeBorder(warped, 50, 50, 50, 50, 0)
+
+
+
+                #cv2.imshow(str(idx) + "_warp", out_imm_pad)
+
+
+                    for it in range(len(lista_immagini)-1):
+                        # Read the main image
+                        immage_template = "./template/"+lista_immagini[it+1]
+                        img_rgb = warped
+                        img_gray = cv2.cvtColor(img_rgb, cv2.COLOR_BGR2GRAY)
+                        template = cv2.imread(immage_template,0)
+
+
+                        # Initiate SIFT detector
+                        orb = cv2.ORB_create()
+
+                        # find the keypoints and descriptors with SIFT
+                        kp1, des1 = orb.detectAndCompute(template, None)
+                        kp2, des2 = orb.detectAndCompute(img_gray, None)
+
+                        # create BFMatcher object
+                        bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+
+                        # Match descriptors.
+                        print(des1,des2)
+                        if (des1 is None) or (des2 is None):
+                            continue
+                        matches = bf.match(des1, des2)
+
+                        # Sort them in the order of their distance.
+                        matches = sorted(matches, key=lambda x: x.distance)
+                        print(matches[0])
+                        good = []
+                        for m in matches:
+                            print(m.distance)
+
+                            if m.distance < 45:
+                                good.append(m)
+
+
+
+                        if len(good) > 10:
+                            img3 = cv2.drawMatches(template, kp1, img_gray, kp2, matches[:10], None, flags=2)
+                            cv2.imshow(lista_titoli[it + 1], img3)
+                        else:
+                            print(str(it+1)+ ' indice')
+                            print(lista_titoli[it + 1]+' non va bene')
+                        # Draw first 10 matches.
+                        
+
+                        cv2.waitKey()
+                        cv2.destroyAllWindows()
+                        
+
 
 
         k = cv2.waitKey(5) & 0xFF

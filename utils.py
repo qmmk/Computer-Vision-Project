@@ -1,9 +1,24 @@
 import numpy as np
 import cv2
+import csv
 from PIL import Image
 
 # input: img --> 2D or 3D array
 # output: histogram normalized
+lista_cvs = './dataset/data.csv'
+
+def carica_lista_cvs():
+    lista_titoli = []
+    lista_immagini = []
+    with open(lista_cvs) as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        line_count = 0
+        for row in csv_reader:
+            lista_immagini.append(row[3])
+            lista_titoli.append(row[0])
+
+    return lista_titoli,lista_immagini
+
 def compute_histogram(img):
     planes = []
     if len(img.shape) == 3:
@@ -80,7 +95,7 @@ def hybrid_edge_detection(frame):
 
     img_bwa = cv2.bitwise_and(thresh, dilatation_out)
 
-    #img_bwa = cv2.bitwise_or(dilatation_out, dilatation_out_canny)
+    #img_bwa = cv2.bitwise_or(img_bwa, dilatation_out_canny)
 
 
     img_bwa = cv2.erode(img_bwa, kernel2, iterations=2)
@@ -167,8 +182,8 @@ def image_crop(frame, hull_list, i):
     (topy, topx) = (np.min(y), np.min(x))
     (bottomy, bottomx) = (np.max(y), np.max(x))
     out = out[topy:bottomy + 1, topx:bottomx + 1]
-    outs.append(out)
-    return outs
+    #outs.append(out)
+    return out
 
 def image_crop_bin(frame, hull_list, i):
     outs = []
