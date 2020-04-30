@@ -289,20 +289,36 @@ def getLine(edges,frame):
         y2 = int(y0 - 1000 * (a))
         cv2.line(frame, (x1, y1), (x2, y2), (255, 255, 255), 2)
     '''
+"""'"""
 
+def ORB(im1,im2,titolo_immagine):
+    # Initiate SIFT detector
+    orb = cv2.ORB_create()
 
-def add_margin(img, lr, tp, bin=False):
-    h, w = img.shape[0:2]
-    if bin:
-        base_size = h + lr * 2, w + tp * 2
+    # find the keypoints and descriptors with SIFT
+    kp1, des1 = orb.detectAndCompute(im1, None)
+    kp2, des2 = orb.detectAndCompute(im2, None)
 
-        base = np.zeros(base_size, dtype=np.uint8)
-        cv2.rectangle(base, (0, 0), (w + lr * 2, h + tp * 2), (0), 30)  # really thick white rectangle
-        base[tp:h + tp, lr:w + lr] = img  # this works
+    # create BFMatcher object
+    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+
+    # Match descriptors.
+    if (des1 is None) or (des2 is None):
+        return False, 0
+
+    matches = bf.match(des1, des2)
+    # Sort them in the order of their distance.
+    matches = sorted(matches, key=lambda x: x.distance)
+    good = []
+    for m in matches:
+        if m.distance < 40:
+            good.append(m)
+
+    if len(good) > 10:
+        #img3 = cv2.drawMatches(im2, kp1, im2, kp2, matches[:10], None, flags=2)
+        #cv2.imshow(titolo_immagine, img3)
+        #cv2.waitKey()
+        #cv2.destroyAllWindows()
+        return True, matches
     else:
-        base_size = h + lr*2, w + tp*2, 3
-
-        base = np.zeros(base_size, dtype=np.uint8)
-        cv2.rectangle(base, (0, 0), (w + lr*2, h + tp*2), (0, 0, 0), 30)  # really thick white rectangle
-        base[tp:h + tp, lr:w + lr] = img  # this works
-    return base
+        return False, 0

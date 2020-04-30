@@ -59,7 +59,7 @@ while (True):
                 utils.getLine(canny,houges)
 
 
-
+        # codice per fare output ROI varie
         #cv2.imshow('im', src_mask)
         #cv2.imshow('canny', canny)
         #cv2.imshow('imh', houges)
@@ -69,13 +69,13 @@ while (True):
         masks = []
         cannys = []
 
-
+        # loop per estrarre e appendere a liste predifinite crop immagini
         for i in range(len(hull_list)):
             outs.append(utils.image_crop(frame, hull_list, i))
             masks.append(utils.image_crop_bin(src_mask, hull_list, i))
 
+        # loop con calcolo histogramma, rectification e feature extraction con orb
         for idx in range(len(outs)):
-            #cv2.imshow(str(idx), outs[idx])
             hist = utils.compute_histogram(outs[idx])
             entropy = utils.entropy(hist)
 
@@ -90,7 +90,6 @@ while (True):
 
                 if corners is not None:
                     for i in corners:
-
                         x,y = i.ravel()
                         cv2.circle(out_imm_pad,(x,y),3,255,-1)
 
@@ -98,62 +97,20 @@ while (True):
                     corners = np.squeeze(corners, axis=1)
                     warped = utils.rectify_image(out_imm_pad, corners)
                     warped = cv2.copyMakeBorder(warped, 50, 50, 50, 50, 0)
-
-
-
-                #cv2.imshow(str(idx) + "_warp", out_imm_pad)
+                    #cv2.imshow(str(idx) + "_warp", out_imm_pad)
 
 
                     for it in range(len(lista_immagini)-1):
                         # Read the main image
+                        titolo_quadro = lista_titoli[it+1]
                         immage_template = "./template/"+lista_immagini[it+1]
                         img_rgb = warped
                         img_gray = cv2.cvtColor(img_rgb, cv2.COLOR_BGR2GRAY)
                         template = cv2.imread(immage_template,0)
 
-
-                        # Initiate SIFT detector
-                        orb = cv2.ORB_create()
-
-                        # find the keypoints and descriptors with SIFT
-                        kp1, des1 = orb.detectAndCompute(template, None)
-                        kp2, des2 = orb.detectAndCompute(img_gray, None)
-
-                        # create BFMatcher object
-                        bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
-
-                        # Match descriptors.
-                        print(des1,des2)
-                        if (des1 is None) or (des2 is None):
-                            continue
-                        matches = bf.match(des1, des2)
-
-                        # Sort them in the order of their distance.
-                        matches = sorted(matches, key=lambda x: x.distance)
-                        print(matches[0])
-                        good = []
-                        for m in matches:
-                            print(m.distance)
-
-                            if m.distance < 45:
-                                good.append(m)
-
-
-
-                        if len(good) > 10:
-                            img3 = cv2.drawMatches(template, kp1, img_gray, kp2, matches[:10], None, flags=2)
-                            cv2.imshow(lista_titoli[it + 1], img3)
-                        else:
-                            print(str(it+1)+ ' indice')
-                            print(lista_titoli[it + 1]+' non va bene')
-                        # Draw first 10 matches.
-                        
-
-                        cv2.waitKey()
-                        cv2.destroyAllWindows()
-                        
-
-
+                        is_detected, matches = utils.ORB(img_gray,template,titolo_quadro)
+                        if is_detected:
+                            print(titolo_quadro)
 
         k = cv2.waitKey(5) & 0xFF
         if k == ord("q"):
