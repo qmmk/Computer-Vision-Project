@@ -73,7 +73,6 @@ def hybrid_edge_detection(frame):
     gray = cv2.GaussianBlur(gray, (15, 15), cv2.BORDER_DEFAULT)
 
     gabor = cv2.filter2D(gray, cv2.CV_8UC3, g_kernel)
-
     edges_canny = cv2.Canny(gray_no_blur, 100, 200)
 
     # adaptive
@@ -102,7 +101,7 @@ def hybrid_edge_detection(frame):
     img_bwa = cv2.erode(img_bwa, kernel, iterations=7)
     img_bwa = cv2.dilate(img_bwa, kernel7, iterations=2)
 
-    return img_bwa
+    return thresh
 
 
 class ColourBounds:
@@ -167,6 +166,9 @@ def otsu(frame):
     erode = cv2.erode(thresh, kernel2, iterations=1)
     return erode
 
+def drawLabel(w, h, x, y, text, frame):
+    cv2.rectangle(frame,(x,y),(x+w,y+h),(120,0,0),2)
+    cv2.putText(frame, text, (x,y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,255), 2)
 
 def image_crop(frame, hull_list, i):
     outs = []
@@ -201,7 +203,6 @@ def image_crop_bin(frame, hull_list, i):
     outs.append(out)
     return outs
 
-
 def order_points(pts):
     # initialzie a list of coordinates that will be ordered
     # such that the first entry in the list is the top-left,
@@ -221,7 +222,6 @@ def order_points(pts):
     rect[3] = pts[np.argmax(diff)]
     # return the ordered coordinates
     return rect
-
 
 def rectify_image(image, pts):
     # obtain a consistent order of the points and unpack them
@@ -256,6 +256,13 @@ def rectify_image(image, pts):
     warped = cv2.warpPerspective(image, M, (maxWidth, maxHeight))
     # return the warped image
     return warped
+
+def rectify_image_with_correspondences(im,p1,p2,w,h):
+    m, status = cv2.findHomography(p1, p2)
+    warped = cv2.warpPerspective(im,m,(w,h))
+
+    return warped
+
 
 def getLine(edges,frame):
     # get contours
@@ -294,6 +301,8 @@ def getLine(edges,frame):
 def ORB(im1,im2,titolo_immagine):
     # Initiate SIFT detector
     orb = cv2.ORB_create()
+    #cv2.imshow("im1", im1)
+    #cv2.imshow("im2", im2)
 
     # find the keypoints and descriptors with SIFT
     kp1, des1 = orb.detectAndCompute(im1, None)
@@ -304,21 +313,40 @@ def ORB(im1,im2,titolo_immagine):
 
     # Match descriptors.
     if (des1 is None) or (des2 is None):
-        return False, 0
+        return False, 0, 0, 0, 100000
 
     matches = bf.match(des1, des2)
     # Sort them in the order of their distance.
     matches = sorted(matches, key=lambda x: x.distance)
     good = []
-    for m in matches:
-        if m.distance < 40:
-            good.append(m)
+    retkp1 = []
+    retkp2 = []
+    ngood = 10
 
-    if len(good) > 10:
-        #img3 = cv2.drawMatches(im2, kp1, im2, kp2, matches[:10], None, flags=2)
-        #cv2.imshow(titolo_immagine, img3)
-        #cv2.waitKey()
-        #cv2.destroyAllWindows()
-        return True, matches
+    for m in matches:
+        if m.distance < 50: #40
+            good.append(m)
+            # Get the matching keypoints for each of the images
+            img1_idx = m.queryIdx
+            img2_idx = m.trainIdx
+            (x1, y1) = kp1[img1_idx].pt
+            (x2, y2) = kp2[img2_idx].pt
+            retkp1.append((x1, y1))
+            retkp2.append((x2, y2))
+
+    if len(good) >= ngood:
+        good = sorted(good, key=lambda x: x.distance)
+        score = sum(x.distance for x in good[:ngood])
+        print("{} -> score: {}".format(titolo_immagine,score))
+
+        if score < 250:
+            print(score)
+            img3 = cv2.drawMatches(im1, kp1, im2, kp2, good[:ngood], None, flags=2)
+            cv2.imshow(titolo_immagine, img3)
+            cv2.waitKey()
+            cv2.destroyAllWindows()
+            return True, good, retkp1, retkp2, score
+        else:
+            return False, 0, 0, 0, 100000
     else:
-        return False, 0
+        return False, 0, 0, 0, 100000
