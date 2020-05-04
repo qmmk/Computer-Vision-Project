@@ -80,7 +80,7 @@ while (True):
                 min_idx = -1
                 min_score = 100000
                 text = "quadro"
-
+                '''
                 for it in range(len(lista_immagini)- 1):
                     # Read the main image
                     titolo_quadro = lista_titoli[it + 1]
@@ -132,13 +132,15 @@ while (True):
                         cv2.imshow('im', out_imm_pad)
                         cv2.waitKey()
                         cv2.destroyAllWindows()
-
+                '''
                 utils.drawLabel(rects[idx][2], rects[idx][3], rects[idx][0], rects[idx][1], text, frame)
 
         #output dopo aver iterato su tutti gli out del frame
+        frame = utils.fucking_yolo(frame, frame_height, frame_width)
+        print("X")
         cv2.imshow('detect', frame)
-        cv2.waitKey()
-        cv2.destroyAllWindows()
+        #cv2.waitKey()
+        #cv2.destroyAllWindows()
 
         k = cv2.waitKey(5) & 0xFF
         if k == ord("q"):

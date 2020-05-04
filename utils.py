@@ -7,6 +7,7 @@ from PIL import Image
 # output: histogram normalized
 lista_cvs = './dataset/data.csv'
 
+
 def carica_lista_cvs():
     lista_titoli = []
     lista_immagini = []
@@ -17,7 +18,8 @@ def carica_lista_cvs():
             lista_immagini.append(row[3])
             lista_titoli.append(row[0])
 
-    return lista_titoli,lista_immagini
+    return lista_titoli, lista_immagini
+
 
 def compute_histogram(img):
     planes = []
@@ -64,8 +66,9 @@ kernel2 = np.ones((5, 5), np.uint8)
 kernel7 = np.ones((7, 7), np.uint8)
 
 g_kernel = cv2.getGaborKernel((25, 25), 6.5, np.pi / 4, 10.0, 0.5, 0, ktype=cv2.CV_32F)
-#g_kernel = cv2.getGaborKernel((30, 30), 6.5, np.pi / 4, 8.0, 0.5, 0, ktype=cv2.CV_32F)
+# g_kernel = cv2.getGaborKernel((30, 30), 6.5, np.pi / 4, 8.0, 0.5, 0, ktype=cv2.CV_32F)
 color = (255, 255, 255)
+
 
 def hybrid_edge_detection(frame):
     gray_no_blur = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -76,26 +79,23 @@ def hybrid_edge_detection(frame):
     edges_canny = cv2.Canny(gray_no_blur, 100, 200)
 
     # adaptive
-    #edges = cv2.adaptiveThreshold(gabor, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    # edges = cv2.adaptiveThreshold(gabor, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
     edges = cv2.bitwise_not(gabor)
 
     # morpho
     opening = cv2.morphologyEx(edges, cv2.MORPH_OPEN, kernel)
     dilatation_out = cv2.dilate(opening, kernel7, iterations=3)
 
-    #morpho_canny
-    #opening = cv2.morphologyEx(edges_canny, cv2.MORPH_OPEN, kernel)
+    # morpho_canny
+    # opening = cv2.morphologyEx(edges_canny, cv2.MORPH_OPEN, kernel)
     dilatation_out_canny = cv2.dilate(edges_canny, kernel2, iterations=5)
 
-
     ret, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-    #erode = cv2.erode(thresh, kernel2, iterations=1)
-
+    # erode = cv2.erode(thresh, kernel2, iterations=1)
 
     img_bwa = cv2.bitwise_and(thresh, dilatation_out)
 
-    #img_bwa = cv2.bitwise_or(img_bwa, dilatation_out_canny)
-
+    # img_bwa = cv2.bitwise_or(img_bwa, dilatation_out_canny)
 
     img_bwa = cv2.erode(img_bwa, kernel2, iterations=2)
     img_bwa = cv2.erode(img_bwa, kernel, iterations=7)
@@ -166,9 +166,11 @@ def otsu(frame):
     erode = cv2.erode(thresh, kernel2, iterations=1)
     return erode
 
+
 def drawLabel(w, h, x, y, text, frame):
-    cv2.rectangle(frame,(x,y),(x+w,y+h),(120,0,0),2)
-    cv2.putText(frame, text, (x,y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,255), 2)
+    cv2.rectangle(frame, (x, y), (x + w, y + h), (120, 0, 0), 2)
+    cv2.putText(frame, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
+
 
 def image_crop(frame, hull_list, i):
     outs = []
@@ -179,13 +181,14 @@ def image_crop(frame, hull_list, i):
 
     # Now crop
     (y, x, z) = np.where(mask == 255)
-    #(y, x) = np.where(mask == 255)
+    # (y, x) = np.where(mask == 255)
 
     (topy, topx) = (np.min(y), np.min(x))
     (bottomy, bottomx) = (np.max(y), np.max(x))
     out = out[topy:bottomy + 1, topx:bottomx + 1]
-    #outs.append(out)
+    # outs.append(out)
     return out
+
 
 def image_crop_bin(frame, hull_list, i):
     outs = []
@@ -202,6 +205,7 @@ def image_crop_bin(frame, hull_list, i):
     out = out[topy:bottomy + 1, topx:bottomx + 1]
     outs.append(out)
     return outs
+
 
 def order_points(pts):
     # initialzie a list of coordinates that will be ordered
@@ -222,6 +226,7 @@ def order_points(pts):
     rect[3] = pts[np.argmax(diff)]
     # return the ordered coordinates
     return rect
+
 
 def rectify_image(image, pts):
     # obtain a consistent order of the points and unpack them
@@ -257,23 +262,24 @@ def rectify_image(image, pts):
     # return the warped image
     return warped
 
-def rectify_image_with_correspondences(im,p1,p2,w,h):
+
+def rectify_image_with_correspondences(im, p1, p2, w, h):
     m, status = cv2.findHomography(p1, p2)
-    warped = cv2.warpPerspective(im,m,(w,h))
+    warped = cv2.warpPerspective(im, m, (w, h))
 
     return warped
 
 
-def getLine(edges,frame):
+def getLine(edges, frame):
     # get contours
 
     minLineLength = 100
 
-    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=100,minLineLength=100,maxLineGap=50)
+    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=100, minLineLength=100, maxLineGap=50)
     if lines is None:
         return
 
-    N=lines.shape[0]
+    N = lines.shape[0]
     for i in range(N):
         x1 = lines[i][0][0]
         y1 = lines[i][0][1]
@@ -296,13 +302,16 @@ def getLine(edges,frame):
         y2 = int(y0 - 1000 * (a))
         cv2.line(frame, (x1, y1), (x2, y2), (255, 255, 255), 2)
     '''
+
+
 """'"""
 
-def ORB(im1,im2,titolo_immagine):
+
+def ORB(im1, im2, titolo_immagine):
     # Initiate SIFT detector
     orb = cv2.ORB_create()
-    #cv2.imshow("im1", im1)
-    #cv2.imshow("im2", im2)
+    # cv2.imshow("im1", im1)
+    # cv2.imshow("im2", im2)
 
     # find the keypoints and descriptors with SIFT
     kp1, des1 = orb.detectAndCompute(im1, None)
@@ -324,7 +333,7 @@ def ORB(im1,im2,titolo_immagine):
     ngood = 10
 
     for m in matches:
-        if m.distance < 50: #40
+        if m.distance < 50:  # 40
             good.append(m)
             # Get the matching keypoints for each of the images
             img1_idx = m.queryIdx
@@ -337,7 +346,7 @@ def ORB(im1,im2,titolo_immagine):
     if len(good) >= ngood:
         good = sorted(good, key=lambda x: x.distance)
         score = sum(x.distance for x in good[:ngood])
-        print("{} -> score: {}".format(titolo_immagine,score))
+        print("{} -> score: {}".format(titolo_immagine, score))
 
         if score < 250:
             print(score)
@@ -350,3 +359,60 @@ def ORB(im1,im2,titolo_immagine):
             return False, 0, 0, 0, 100000
     else:
         return False, 0, 0, 0, 100000
+
+
+def fucking_yolo(frame, height, width):
+    # Load Yolo
+    config = "./content/yolov3.cfg"
+    weights = "./content/yolov3.weights"
+    names = "./content/coco.names"
+    net = cv2.dnn.readNet(weights, config)
+    font = cv2.FONT_HERSHEY_PLAIN
+    classes = []
+    with open(names, "r") as f:
+        classes = [line.strip() for line in f.readlines()]
+    layer_names = net.getLayerNames()
+    output_layers = [layer_names[i[0] - 1] for i in net.getUnconnectedOutLayers()]
+    colors = np.random.uniform(0, 255, size=(len(classes), 3))
+
+    # Detecting objects
+    blob = cv2.dnn.blobFromImage(frame, 0.00392, (128, 128), (0, 0, 0), True, crop=False)
+
+    net.setInput(blob)
+    outs = net.forward(output_layers)
+
+    # Showing informations on the screen
+    class_ids = []
+    confidences = []
+    boxes = []
+    for out in outs:
+        for detection in out:
+            scores = detection[5:]
+            class_id = np.argmax(scores)
+            confidence = scores[class_id]
+            if confidence > 0.2:
+                # Object detected
+                center_x = int(detection[0] * width)
+                center_y = int(detection[1] * height)
+                w = int(detection[2] * width)
+                h = int(detection[3] * height)
+
+                # Rectangle coordinates
+                x = int(center_x - w / 2)
+                y = int(center_y - h / 2)
+
+                boxes.append([x, y, w, h])
+                confidences.append(float(confidence))
+                class_ids.append(class_id)
+
+    indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.8, 0.3)
+
+    for i in range(len(boxes)):
+        if i in indexes:
+            x, y, w, h = boxes[i]
+            label = str(classes[class_ids[i]])
+            confidence = confidences[i]
+            color = colors[class_ids[i]]
+            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+            cv2.putText(frame, label + " " + str(round(confidence, 2)), (x, y + 30), font, 3, color, 3)
+    return frame
