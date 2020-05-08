@@ -54,6 +54,11 @@ def compute_histogram(img):
     histogram = histogram / img.size
     return histogram
 
+def hist_compute_orb(image):
+    hist = cv2.calcHist([image], [0, 1, 2], None, [8, 8, 8],
+                        [0, 256, 0, 256, 0, 256])
+    hist = cv2.normalize(hist, hist).flatten()
+    return hist
 
 # function for Shannon's Entropy
 def entropy(histogram):
@@ -62,6 +67,7 @@ def entropy(histogram):
 
 
 kernel = np.ones((3, 3), np.uint8)
+kernel1 = np.ones((1, 1), np.uint8)
 kernel2 = np.ones((5, 5), np.uint8)
 kernel7 = np.ones((7, 7), np.uint8)
 
@@ -73,9 +79,10 @@ color = (255, 255, 255)
 def hybrid_edge_detection(frame):
     gray_no_blur = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     gray = cv2.GaussianBlur(gray_no_blur, (5, 5), cv2.BORDER_DEFAULT)
-    gray = cv2.GaussianBlur(gray, (15, 15), cv2.BORDER_DEFAULT)
+    gray = cv2.GaussianBlur(gray, (13, 13), cv2.BORDER_DEFAULT)
 
     gabor = cv2.filter2D(gray, cv2.CV_8UC3, g_kernel)
+
     edges_canny = cv2.Canny(gray_no_blur, 100, 200)
 
     # adaptive
@@ -88,20 +95,33 @@ def hybrid_edge_detection(frame):
 
     # morpho_canny
     # opening = cv2.morphologyEx(edges_canny, cv2.MORPH_OPEN, kernel)
-    dilatation_out_canny = cv2.dilate(edges_canny, kernel2, iterations=5)
+    dilatation_out_canny = cv2.dilate(edges_canny, kernel7, iterations=2)
 
     ret, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     # erode = cv2.erode(thresh, kernel2, iterations=1)
 
     img_bwa = cv2.bitwise_and(thresh, dilatation_out)
 
-    # img_bwa = cv2.bitwise_or(img_bwa, dilatation_out_canny)
-
     img_bwa = cv2.erode(img_bwa, kernel2, iterations=2)
     img_bwa = cv2.erode(img_bwa, kernel, iterations=7)
-    img_bwa = cv2.dilate(img_bwa, kernel7, iterations=2)
+    img_bwa_ = cv2.dilate(img_bwa, kernel7, iterations=2)
 
-    return thresh
+    img_bwa = cv2.bitwise_or(img_bwa_, dilatation_out_canny)
+
+    """
+    gabor = cv2.dilate(gabor,kernel2,iterations=1)
+    img_bwa = cv2.bitwise_and(img_bwa_, gabor)
+    """
+
+    ad = adaptive_Filter(frame)
+    img_bwa = cv2.bitwise_or(img_bwa, ad)
+
+    img_bwa = cv2.erode(img_bwa, kernel, iterations=1)
+
+    # cv2.imshow('hybrid',img_bwa)
+    # cv2.waitKey()
+
+    return img_bwa
 
 
 class ColourBounds:
@@ -122,7 +142,6 @@ class ColourBounds:
 
         self.lower = [np.array([h, 100, 100]) for h in lower]
         self.upper = [np.array([h, 255, 255]) for h in upper]
-
 
 colourMap = {
     "quadro": ColourBounds((150, 130, 100))
@@ -159,18 +178,54 @@ def adaptive(frame):
         scr_dilat = [erosion2.copy()]
     return scr_dilat
 
+def hybrid_edge_detection_V2(frame):
+    gray_no_blur = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    gray = cv2.GaussianBlur(gray_no_blur, (5, 5), cv2.BORDER_DEFAULT)
+    gray = cv2.GaussianBlur(gray, (13, 13), cv2.BORDER_DEFAULT)
+
+    gabor = cv2.filter2D(gray, cv2.CV_8UC3, g_kernel)
+    gabor = cv2.bitwise_not(gabor)
+
+    dilate_gabor = cv2.dilate(gabor, kernel2, iterations=2)
+
+    adapt_filter = adaptive_Filter(frame)
+
+    canny = cv2.Canny(gray_no_blur, 50, 140)
+    dilate_canny = cv2.dilate(canny, kernel2, iterations=1)
+
+    img_bwa = cv2.bitwise_and(adapt_filter, dilate_canny)
+    img_bwa = cv2.bitwise_or(img_bwa, dilate_gabor)
+
+    #img_bwa = cv2.erode(img_bwa, kernel2, iterations=2)
+    #img_bwa = cv2.erode(img_bwa, kernel, iterations=7)
+    img_bwa = cv2.dilate(img_bwa, kernel, iterations=3)
+
+    img_bwa = cv2.bitwise_or(adapt_filter, img_bwa)
+
+    #showImageAndStop('f',img_bwa)
+
+    return img_bwa
+
+def adaptive_Filter(frame):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    gray = cv2.GaussianBlur(gray, (5, 5), 15)
+    edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    edges = cv2.bitwise_not(edges)
+    opening = cv2.morphologyEx(edges, cv2.MORPH_OPEN, kernel)
+    dilate = cv2.dilate(opening, kernel2, iterations=2)
+
+    return dilate
 
 def otsu(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    gray = cv2.GaussianBlur(gray, (5, 5), cv2.BORDER_DEFAULT)
     ret, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     erode = cv2.erode(thresh, kernel2, iterations=1)
     return erode
 
-
 def drawLabel(w, h, x, y, text, frame):
     cv2.rectangle(frame, (x, y), (x + w, y + h), (120, 0, 0), 2)
     cv2.putText(frame, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
-
 
 def image_crop(frame, hull_list, i):
     outs = []
@@ -189,7 +244,6 @@ def image_crop(frame, hull_list, i):
     # outs.append(out)
     return out
 
-
 def image_crop_bin(frame, hull_list, i):
     outs = []
     mask = np.zeros_like(frame)  # Create mask where white is what we want, black otherwise
@@ -205,7 +259,6 @@ def image_crop_bin(frame, hull_list, i):
     out = out[topy:bottomy + 1, topx:bottomx + 1]
     outs.append(out)
     return outs
-
 
 def order_points(pts):
     # initialzie a list of coordinates that will be ordered
@@ -226,7 +279,6 @@ def order_points(pts):
     rect[3] = pts[np.argmax(diff)]
     # return the ordered coordinates
     return rect
-
 
 def rectify_image(image, pts):
     # obtain a consistent order of the points and unpack them
@@ -262,13 +314,11 @@ def rectify_image(image, pts):
     # return the warped image
     return warped
 
-
 def rectify_image_with_correspondences(im, p1, p2, w, h):
     m, status = cv2.findHomography(p1, p2)
     warped = cv2.warpPerspective(im, m, (w, h))
 
     return warped
-
 
 def getLine(edges, frame):
     # get contours
@@ -290,7 +340,7 @@ def getLine(edges, frame):
 
     '''
     lines = cv2.HoughLines(edges, 1, np.pi / 180, 200)
-    
+
     for rho, theta in lines[0]:
         a = np.cos(theta)
         b = np.sin(theta)
@@ -302,10 +352,6 @@ def getLine(edges, frame):
         y2 = int(y0 - 1000 * (a))
         cv2.line(frame, (x1, y1), (x2, y2), (255, 255, 255), 2)
     '''
-
-
-"""'"""
-
 
 def ORB(im1, im2, titolo_immagine):
     # Initiate SIFT detector
@@ -333,7 +379,7 @@ def ORB(im1, im2, titolo_immagine):
     ngood = 10
 
     for m in matches:
-        if m.distance < 50:  # 40
+        if m.distance < 40:  # 50
             good.append(m)
             # Get the matching keypoints for each of the images
             img1_idx = m.queryIdx
@@ -346,19 +392,45 @@ def ORB(im1, im2, titolo_immagine):
     if len(good) >= ngood:
         good = sorted(good, key=lambda x: x.distance)
         score = sum(x.distance for x in good[:ngood])
-        print("{} -> score: {}".format(titolo_immagine, score))
+        #print("{} -> score: {}".format(titolo_immagine, score))
 
-        if score < 250:
-            print(score)
-            img3 = cv2.drawMatches(im1, kp1, im2, kp2, good[:ngood], None, flags=2)
-            cv2.imshow(titolo_immagine, img3)
-            cv2.waitKey()
-            cv2.destroyAllWindows()
+        if score < 350: #230
+            #img3 = cv2.drawMatches(im1, kp1, im2, kp2, good[:ngood], None, flags=2)
+            #cv2.imshow(titolo_immagine, img3)
+            #cv2.waitKey()
+            #cv2.destroyAllWindows()
             return True, good, retkp1, retkp2, score
         else:
             return False, 0, 0, 0, 100000
     else:
         return False, 0, 0, 0, 100000
+
+def detectKeyPoints(lista_immagini,lista_titoli,img_rgb):
+    min_idx = -1
+    min_score = 100000
+    text = "quadro"
+    for it in range(len(lista_immagini) - 1):
+        # Read the main image
+        titolo_quadro = lista_titoli[it + 1]
+        immage_template = "./template/" + lista_immagini[it + 1]
+        template = cv2.imread(immage_template,1)
+
+        is_detected, matches, ret_kp1, ret_kp2, score = ORB(img_rgb, template, titolo_quadro)
+        if score < min_score:
+            min_score = score
+            text = "{} - score: {}".format(titolo_quadro, score)
+
+            min_idx = it
+            array1 = np.array((ret_kp1), dtype=np.float32)
+            array2 = np.array((ret_kp2), dtype=np.float32)
+
+    if min_score < 100000:
+        id = min_idx
+        print("idx" + str(id))
+        warped = rectify_image_with_correspondences(img_rgb, array2[:10], array1[:10], 1000, 1000)
+        #showImageAndStop(text,warped)
+
+    return text
 
 
 def fucking_yolo(frame, height, width):
@@ -416,3 +488,50 @@ def fucking_yolo(frame, height, width):
             cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
             cv2.putText(frame, label + " " + str(round(confidence, 2)), (x, y + 30), font, 3, color, 3)
     return frame
+
+def hougesLinesAndCorner(image):
+    edges = cv2.Canny(image, 50, 150, apertureSize=3)
+    lines = cv2.HoughLines(edges, 1, np.pi / 180.0, 100, np.array([]), 0, 0)
+    out_line = np.zeros_like(image)
+
+    if lines is not None:
+        for line in lines:
+            rho, theta = line[0]
+            a = np.cos(theta)
+            b = np.sin(theta)
+            x0 = a * rho
+            y0 = b * rho
+            x1 = int(x0 + 1000 * (-b))
+            y1 = int(y0 + 1000 * (a))
+            x2 = int(x0 - 1000 * (-b))
+            y2 = int(y0 - 1000 * (a))
+
+            cv2.line(out_line, (x1, y1), (x2, y2), (255, 255, 255), 1)
+
+    # img_gray = cv2.cvtColor(out_line, cv2.COLOR_BGR2GRAY)
+    # cv2.imshow('out' + str(i), out_line)
+    # cv2.waitKey()
+
+    corners = cv2.goodFeaturesToTrack(out_line, 4, 0.4, 80)
+
+    if corners is not None:
+        corners = np.int0(corners)
+
+        for i in corners:
+            x, y = i.ravel()
+            #cv2.circle(out_line, (x, y), 3, 255, -1)
+
+    else:
+        corners = []
+        return corners
+
+    #showImageAndStop('warp', out_line)
+
+    return corners
+
+def showImageAndStop(name,im):
+    cv2.imshow(name,im)
+    cv2.waitKey()
+    cv2.destroyAllWindows()
+
+
