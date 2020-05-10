@@ -1,0 +1,173 @@
+Index: utils.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import numpy as np\r\nimport cv2\r\nimport csv\r\nfrom PIL import Image\r\n\r\n# input: img --> 2D or 3D array\r\n# output: histogram normalized\r\nlista_cvs = './dataset/data.csv'\r\n\r\n\r\ndef carica_lista_cvs():\r\n    lista_titoli = []\r\n    lista_immagini = []\r\n    with open(lista_cvs) as csv_file:\r\n        csv_reader = csv.reader(csv_file, delimiter=',')\r\n        line_count = 0\r\n        for row in csv_reader:\r\n            lista_immagini.append(row[3])\r\n            lista_titoli.append(row[0])\r\n\r\n    return lista_titoli, lista_immagini\r\n\r\n\r\ndef compute_histogram(img):\r\n    planes = []\r\n    if len(img.shape) == 3:\r\n        h, w, d = img.shape\r\n        h_w = h * w\r\n        if d == 3:\r\n            p1 = img[:, :, 0]\r\n            p2 = img[:, :, 1]\r\n            p3 = img[:, :, 2]\r\n            planes = [p1, p2, p3]\r\n        else:\r\n            planes = [img]\r\n\r\n    if len(img.shape) == 2:\r\n        h_w, d = img.shape\r\n        if d == 3:\r\n            p1 = img[:, 0]\r\n            p2 = img[:, 1]\r\n            p3 = img[:, 2]\r\n            planes = [p1, p2, p3]\r\n        else:\r\n            planes = [img]\r\n\r\n    # e' corretto 256, non h_w\r\n    histogram = np.zeros(256 * d)\r\n    for i in np.arange(len(planes)):\r\n        p = planes[i]\r\n        for val in np.unique(p):\r\n            count = np.sum(p == val)\r\n            histogram[val + i * 256] = count\r\n    histogram = histogram / img.size\r\n    return histogram\r\n\r\n\r\n# function for Shannon's Entropy\r\ndef entropy(histogram):\r\n    histogram = histogram[histogram > 0]\r\n    return -np.sum(histogram * np.log2(histogram))\r\n\r\n\r\nkernel = np.ones((3, 3), np.uint8)\r\nkernel2 = np.ones((5, 5), np.uint8)\r\nkernel7 = np.ones((7, 7), np.uint8)\r\n\r\ng_kernel = cv2.getGaborKernel((25, 25), 6.5, np.pi / 4, 10.0, 0.5, 0, ktype=cv2.CV_32F)\r\n# g_kernel = cv2.getGaborKernel((30, 30), 6.5, np.pi / 4, 8.0, 0.5, 0, ktype=cv2.CV_32F)\r\ncolor = (255, 255, 255)\r\n\r\n\r\ndef hybrid_edge_detection(frame):\r\n    gray_no_blur = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)\r\n    gray = cv2.GaussianBlur(gray_no_blur, (5, 5), cv2.BORDER_DEFAULT)\r\n    gray = cv2.GaussianBlur(gray, (15, 15), cv2.BORDER_DEFAULT)\r\n\r\n    gabor = cv2.filter2D(gray, cv2.CV_8UC3, g_kernel)\r\n    edges_canny = cv2.Canny(gray_no_blur, 100, 200)\r\n\r\n    # adaptive\r\n    # edges = cv2.adaptiveThreshold(gabor, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)\r\n    edges = cv2.bitwise_not(gabor)\r\n\r\n    # morpho\r\n    opening = cv2.morphologyEx(edges, cv2.MORPH_OPEN, kernel)\r\n    dilatation_out = cv2.dilate(opening, kernel7, iterations=3)\r\n\r\n    # morpho_canny\r\n    # opening = cv2.morphologyEx(edges_canny, cv2.MORPH_OPEN, kernel)\r\n    dilatation_out_canny = cv2.dilate(edges_canny, kernel2, iterations=5)\r\n\r\n    ret, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)\r\n    # erode = cv2.erode(thresh, kernel2, iterations=1)\r\n\r\n    img_bwa = cv2.bitwise_and(thresh, dilatation_out)\r\n\r\n    # img_bwa = cv2.bitwise_or(img_bwa, dilatation_out_canny)\r\n\r\n    img_bwa = cv2.erode(img_bwa, kernel2, iterations=2)\r\n    img_bwa = cv2.erode(img_bwa, kernel, iterations=7)\r\n    img_bwa = cv2.dilate(img_bwa, kernel7, iterations=2)\r\n\r\n    return thresh\r\n\r\n\r\nclass ColourBounds:\r\n    def __init__(self, rgb):\r\n        hsv = cv2.cvtColor(np.uint8([[[rgb[2], rgb[1], rgb[0]]]]), cv2.COLOR_BGR2HSV).flatten()\r\n\r\n        lower = [hsv[0] - 10]\r\n        upper = [hsv[0] + 10]\r\n\r\n        if lower[0] < 0:\r\n            lower.append(179 + lower[0])  # + negative = - abs\r\n            upper.append(179)\r\n            lower[0] = 0\r\n        elif upper[0] > 179:\r\n            lower.append(0)\r\n            upper.append(upper[0] - 179)\r\n            upper[0] = 179\r\n\r\n        self.lower = [np.array([h, 100, 100]) for h in lower]\r\n        self.upper = [np.array([h, 255, 255]) for h in upper]\r\n\r\n\r\ncolourMap = {\r\n    \"quadro\": ColourBounds((150, 130, 100))\r\n}\r\n\r\n\r\ndef adaptive(frame):\r\n    for name, colour in colourMap.items():\r\n        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)\r\n        mask = cv2.inRange(hsv, colour.lower[0], colour.upper[0])\r\n\r\n        if len(colour.lower) == 2:\r\n            mask = mask | cv2.inRange(hsv, colour.lower[1], colour.upper[1])\r\n\r\n        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)\r\n\r\n        # g_kernel = cv2.getGaborKernel((15, 15), 6.5, np.pi / 4, 10.0, 0.5, 0, ktype=cv2.CV_32F)\r\n        # #se usi questo kernel per entrambi è più stabile ma non prende quadro sbiadito\r\n\r\n        g_kernel = cv2.getGaborKernel((15, 15), 8.0, np.pi / 4, 10.0, 0.5, 0.5, ktype=cv2.CV_32F)\r\n        g_kernel2 = cv2.getGaborKernel((15, 15), 8.5, np.pi / 4, 10, 0.5, 0, ktype=cv2.CV_32F)\r\n        gray = cv2.filter2D(gray, cv2.CV_8UC3, g_kernel)\r\n        gray = cv2.GaussianBlur(gray, (7, 7), 15)\r\n        gray = cv2.GaussianBlur(gray, (7, 7), 15)\r\n        gray = cv2.GaussianBlur(gray, (7, 7), 15)\r\n\r\n        edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)\r\n        edges = cv2.bitwise_not(edges)\r\n        erosion = cv2.erode(edges, kernel, iterations=2)\r\n        erosion = cv2.medianBlur(erosion, 3)\r\n        erosion_f = cv2.filter2D(erosion, cv2.CV_8UC3, g_kernel2)\r\n        dilatation_out = cv2.dilate(erosion_f, kernel2, iterations=7)\r\n        erosion2 = cv2.erode(dilatation_out, kernel2, iterations=2)\r\n        scr_dilat = [erosion2.copy()]\r\n    return scr_dilat\r\n\r\n\r\ndef otsu(frame):\r\n    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)\r\n    ret, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)\r\n    erode = cv2.erode(thresh, kernel2, iterations=1)\r\n    return erode\r\n\r\n\r\ndef drawLabel(w, h, x, y, text, frame):\r\n    cv2.rectangle(frame, (x, y), (x + w, y + h), (120, 0, 0), 2)\r\n    cv2.putText(frame, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)\r\n\r\n\r\ndef image_crop(frame, hull_list, i):\r\n    outs = []\r\n    mask = np.zeros_like(frame)  # Create mask where white is what we want, black otherwise\r\n    cv2.drawContours(mask, hull_list, i, color, -1)  # Draw filled contour in mask\r\n    out = np.zeros_like(frame)  # Extract out the object and place into output image\r\n    out[mask == 255] = frame[mask == 255]\r\n\r\n    # Now crop\r\n    (y, x, z) = np.where(mask == 255)\r\n    # (y, x) = np.where(mask == 255)\r\n\r\n    (topy, topx) = (np.min(y), np.min(x))\r\n    (bottomy, bottomx) = (np.max(y), np.max(x))\r\n    out = out[topy:bottomy + 1, topx:bottomx + 1]\r\n    # outs.append(out)\r\n    return out\r\n\r\n\r\ndef image_crop_bin(frame, hull_list, i):\r\n    outs = []\r\n    mask = np.zeros_like(frame)  # Create mask where white is what we want, black otherwise\r\n    cv2.drawContours(mask, hull_list, i, color, -1)  # Draw filled contour in mask\r\n    out = np.zeros_like(frame)  # Extract out the object and place into output image\r\n    out[mask == 255] = frame[mask == 255]\r\n\r\n    # Now crop\r\n    (y, x) = np.where(mask == 255)\r\n\r\n    (topy, topx) = (np.min(y), np.min(x))\r\n    (bottomy, bottomx) = (np.max(y), np.max(x))\r\n    out = out[topy:bottomy + 1, topx:bottomx + 1]\r\n    outs.append(out)\r\n    return outs\r\n\r\n\r\ndef order_points(pts):\r\n    # initialzie a list of coordinates that will be ordered\r\n    # such that the first entry in the list is the top-left,\r\n    # the second entry is the top-right, the third is the\r\n    # bottom-right, and the fourth is the bottom-left\r\n    rect = np.zeros((4, 2), dtype=\"float32\")\r\n    # the top-left point will have the smallest sum, whereas\r\n    # the bottom-right point will have the largest sum\r\n    s = pts.sum(axis=1)\r\n    rect[0] = pts[np.argmin(s)]\r\n    rect[2] = pts[np.argmax(s)]\r\n    # now, compute the difference between the points, the\r\n    # top-right point will have the smallest difference,\r\n    # whereas the bottom-left will have the largest difference\r\n    diff = np.diff(pts, axis=1)\r\n    rect[1] = pts[np.argmin(diff)]\r\n    rect[3] = pts[np.argmax(diff)]\r\n    # return the ordered coordinates\r\n    return rect\r\n\r\n\r\ndef rectify_image(image, pts):\r\n    # obtain a consistent order of the points and unpack them\r\n    # individually\r\n\r\n    rect = order_points(pts)\r\n    (tl, tr, br, bl) = rect\r\n    # compute the width of the new image, which will be the\r\n    # maximum distance between bottom-right and bottom-left\r\n    # x-coordiates or the top-right and top-left x-coordinates\r\n    widthA = np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2))\r\n    widthB = np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2))\r\n    maxWidth = max(int(widthA), int(widthB))\r\n    # compute the height of the new image, which will be the\r\n    # maximum distance between the top-right and bottom-right\r\n    # y-coordinates or the top-left and bottom-left y-coordinates\r\n    heightA = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))\r\n    heightB = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))\r\n    maxHeight = max(int(heightA), int(heightB))\r\n    # now that we have the dimensions of the new image, construct\r\n    # the set of destination points to obtain a \"birds eye view\",\r\n    # (i.e. top-down view) of the image, again specifying points\r\n    # in the top-left, top-right, bottom-right, and bottom-left\r\n    # order\r\n    dst = np.array([\r\n        [0, 0],\r\n        [maxWidth - 1, 0],\r\n        [maxWidth - 1, maxHeight - 1],\r\n        [0, maxHeight - 1]], dtype=\"float32\")\r\n    # compute the perspective transform matrix and then apply it\r\n    M = cv2.getPerspectiveTransform(rect, dst)\r\n    warped = cv2.warpPerspective(image, M, (maxWidth, maxHeight))\r\n    # return the warped image\r\n    return warped\r\n\r\n\r\ndef rectify_image_with_correspondences(im, p1, p2, w, h):\r\n    m, status = cv2.findHomography(p1, p2)\r\n    warped = cv2.warpPerspective(im, m, (w, h))\r\n\r\n    return warped\r\n\r\n\r\ndef getLine(edges, frame):\r\n    # get contours\r\n\r\n    minLineLength = 100\r\n\r\n    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=100, minLineLength=100, maxLineGap=50)\r\n    if lines is None:\r\n        return\r\n\r\n    N = lines.shape[0]\r\n    for i in range(N):\r\n        x1 = lines[i][0][0]\r\n        y1 = lines[i][0][1]\r\n        x2 = lines[i][0][2]\r\n        y2 = lines[i][0][3]\r\n\r\n        cv2.line(frame, (x1, y1), (x2, y2), (255, 255, 255), 2)\r\n\r\n    '''\r\n    lines = cv2.HoughLines(edges, 1, np.pi / 180, 200)\r\n    \r\n    for rho, theta in lines[0]:\r\n        a = np.cos(theta)\r\n        b = np.sin(theta)\r\n        x0 = a * rho\r\n        y0 = b * rho\r\n        x1 = int(x0 + 1000 * (-b))\r\n        y1 = int(y0 + 1000 * (a))\r\n        x2 = int(x0 - 1000 * (-b))\r\n        y2 = int(y0 - 1000 * (a))\r\n        cv2.line(frame, (x1, y1), (x2, y2), (255, 255, 255), 2)\r\n    '''\r\n\r\n\r\n\"\"\"'\"\"\"\r\n\r\n\r\ndef ORB(im1, im2, titolo_immagine):\r\n    # Initiate SIFT detector\r\n    orb = cv2.ORB_create()\r\n    # cv2.imshow(\"im1\", im1)\r\n    # cv2.imshow(\"im2\", im2)\r\n\r\n    # find the keypoints and descriptors with SIFT\r\n    kp1, des1 = orb.detectAndCompute(im1, None)\r\n    kp2, des2 = orb.detectAndCompute(im2, None)\r\n\r\n    # create BFMatcher object\r\n    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)\r\n\r\n    # Match descriptors.\r\n    if (des1 is None) or (des2 is None):\r\n        return False, 0, 0, 0, 100000\r\n\r\n    matches = bf.match(des1, des2)\r\n    # Sort them in the order of their distance.\r\n    matches = sorted(matches, key=lambda x: x.distance)\r\n    good = []\r\n    retkp1 = []\r\n    retkp2 = []\r\n    ngood = 10\r\n\r\n    for m in matches:\r\n        if m.distance < 50:  # 40\r\n            good.append(m)\r\n            # Get the matching keypoints for each of the images\r\n            img1_idx = m.queryIdx\r\n            img2_idx = m.trainIdx\r\n            (x1, y1) = kp1[img1_idx].pt\r\n            (x2, y2) = kp2[img2_idx].pt\r\n            retkp1.append((x1, y1))\r\n            retkp2.append((x2, y2))\r\n\r\n    if len(good) >= ngood:\r\n        good = sorted(good, key=lambda x: x.distance)\r\n        score = sum(x.distance for x in good[:ngood])\r\n        print(\"{} -> score: {}\".format(titolo_immagine, score))\r\n\r\n        if score < 250:\r\n            print(score)\r\n            img3 = cv2.drawMatches(im1, kp1, im2, kp2, good[:ngood], None, flags=2)\r\n            cv2.imshow(titolo_immagine, img3)\r\n            cv2.waitKey()\r\n            cv2.destroyAllWindows()\r\n            return True, good, retkp1, retkp2, score\r\n        else:\r\n            return False, 0, 0, 0, 100000\r\n    else:\r\n        return False, 0, 0, 0, 100000\r\n\r\n\r\ndef fucking_yolo(frame, height, width):\r\n    # Load Yolo\r\n    config = \"./content/yolov3.cfg\"\r\n    weights = \"./content/yolov3.weights\"\r\n    names = \"./content/coco.names\"\r\n    net = cv2.dnn.readNet(weights, config)\r\n    font = cv2.FONT_HERSHEY_PLAIN\r\n    classes = []\r\n    with open(names, \"r\") as f:\r\n        classes = [line.strip() for line in f.readlines()]\r\n    layer_names = net.getLayerNames()\r\n    output_layers = [layer_names[i[0] - 1] for i in net.getUnconnectedOutLayers()]\r\n    colors = np.random.uniform(0, 255, size=(len(classes), 3))\r\n\r\n    # Detecting objects\r\n    blob = cv2.dnn.blobFromImage(frame, 0.00392, (128, 128), (0, 0, 0), True, crop=False)\r\n\r\n    net.setInput(blob)\r\n    outs = net.forward(output_layers)\r\n\r\n    # Showing informations on the screen\r\n    class_ids = []\r\n    confidences = []\r\n    boxes = []\r\n    for out in outs:\r\n        for detection in out:\r\n            scores = detection[5:]\r\n            class_id = np.argmax(scores)\r\n            confidence = scores[class_id]\r\n            if confidence > 0.2:\r\n                # Object detected\r\n                center_x = int(detection[0] * width)\r\n                center_y = int(detection[1] * height)\r\n                w = int(detection[2] * width)\r\n                h = int(detection[3] * height)\r\n\r\n                # Rectangle coordinates\r\n                x = int(center_x - w / 2)\r\n                y = int(center_y - h / 2)\r\n\r\n                boxes.append([x, y, w, h])\r\n                confidences.append(float(confidence))\r\n                class_ids.append(class_id)\r\n\r\n    indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.8, 0.3)\r\n\r\n    for i in range(len(boxes)):\r\n        if i in indexes:\r\n            x, y, w, h = boxes[i]\r\n            label = str(classes[class_ids[i]])\r\n            confidence = confidences[i]\r\n            color = colors[class_ids[i]]\r\n            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)\r\n            cv2.putText(frame, label + \" \" + str(round(confidence, 2)), (x, y + 30), font, 3, color, 3)\r\n    return frame\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- utils.py	(revision 3cc94788772a68093c7c09518c8c29767c3e79f1)
++++ utils.py	(date 1588757960776)
+@@ -362,21 +362,10 @@
+ 
+ 
+ def fucking_yolo(frame, height, width):
+-    # Load Yolo
+-    config = "./content/yolov3.cfg"
+-    weights = "./content/yolov3.weights"
+-    names = "./content/coco.names"
+-    net = cv2.dnn.readNet(weights, config)
+-    font = cv2.FONT_HERSHEY_PLAIN
+-    classes = []
+-    with open(names, "r") as f:
+-        classes = [line.strip() for line in f.readlines()]
+-    layer_names = net.getLayerNames()
+-    output_layers = [layer_names[i[0] - 1] for i in net.getUnconnectedOutLayers()]
+-    colors = np.random.uniform(0, 255, size=(len(classes), 3))
++
+ 
+     # Detecting objects
+-    blob = cv2.dnn.blobFromImage(frame, 0.00392, (128, 128), (0, 0, 0), True, crop=False)
++    blob = cv2.dnn.blobFromImage(frame, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
+ 
+     net.setInput(blob)
+     outs = net.forward(output_layers)
+@@ -413,6 +402,5 @@
+             label = str(classes[class_ids[i]])
+             confidence = confidences[i]
+             color = colors[class_ids[i]]
+-            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+-            cv2.putText(frame, label + " " + str(round(confidence, 2)), (x, y + 30), font, 3, color, 3)
++            drawLabel(w, h, x, y, "person " + str(round(confidence, 2)), frame)
+     return frame
+Index: main.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import cv2\r\nimport numpy as np\r\nimport utils\r\nimport time\r\n\r\nvideo_stronzo = './videos/VIRB0391.MP4'\r\nvideo_normale = './videos/VIRB0414.MP4'\r\nvideo_tondo = './videos/GOPR2051.MP4'\r\nvideo_comune = './videos/VIRB0407.MP4'\r\nvideo_madonna_bimbo = './videos/VIRB0392.MP4'\r\nvideo_boh = \"./videos/VID_20180529_112440.mp4\" #ci vuole gabor filter da 30\r\nvideo_trim = \"./videos/trim.mp4\"\r\n\r\ncap = cv2.VideoCapture(video_madonna_bimbo)\r\n\r\nif (cap.isOpened() == False):\r\n    print(\"Unable to read camera feed\")\r\n\r\nframe_width = int(cap.get(3))\r\nframe_height = int(cap.get(4))\r\nout = cv2.VideoWriter('outpy.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30, (frame_width, frame_height))\r\n\r\n# global used variable\r\ncolor = (255, 255, 255)\r\nkernel = np.ones((3,3),np.uint8)\r\nkernel2 = np.ones((5,5),np.uint8)\r\nkernel3 = np.ones((7,7),np.uint8)\r\n\r\nlista_titoli, lista_immagini = utils.carica_lista_cvs()\r\n\r\nwhile (True):\r\n    ret, frame = cap.read()\r\n    rects = []\r\n\r\n    if ret:\r\n\r\n        src = utils.hybrid_edge_detection(frame)\r\n\r\n        conts, heirarchy = cv2.findContours(src, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)\r\n        src_mask = np.zeros_like(src)\r\n        #houges = np.zeros_like(src)\r\n        hull_list = []\r\n        #vertex = []\r\n\r\n        for i in conts:\r\n            rect = cv2.boundingRect(i)\r\n            x, y, w, h = rect\r\n            if w > 100 and h > 100:\r\n                hull = cv2.convexHull(i)\r\n                hull_list.append(hull)\r\n                #vertex.append(cv2.approxPolyDP(i, 0.009 * cv2.arcLength(i, True), True))\r\n\r\n                # creo contorni da dare alla funzione getline e un frame nero\r\n                cv2.drawContours(src_mask, [hull], 0, (255, 255, 255), -1)\r\n                canny = cv2.Canny(src_mask, 20, 200,apertureSize = 3)\r\n\r\n                rects.append(rect)\r\n        # codice per fare output ROI varie\r\n        #cv2.imshow('im', frame)\r\n        #cv2.imshow('im', src_mask)\r\n        #cv2.imshow('canny', canny)\r\n        #cv2.imshow('imh', houges)\r\n        #cv2.imshow('cont_h', conts_h)\r\n\r\n        outs = []\r\n        masks = []\r\n        cannys = []\r\n\r\n        # loop per estrarre e appendere a liste predifinite crop immagini\r\n        for i in range(len(hull_list)):\r\n            outs.append(utils.image_crop(frame, hull_list, i))\r\n            masks.append(utils.image_crop_bin(src_mask, hull_list, i))\r\n\r\n        # loop con calcolo histogramma, rectification e feature extraction con orb\r\n        for idx in range(len(outs)):\r\n            hist = utils.compute_histogram(outs[idx])\r\n            entropy = utils.entropy(hist)\r\n\r\n            if entropy >= 3:\r\n                min_idx = -1\r\n                min_score = 100000\r\n                text = \"quadro\"\r\n                '''\r\n                for it in range(len(lista_immagini)- 1):\r\n                    # Read the main image\r\n                    titolo_quadro = lista_titoli[it + 1]\r\n                    immage_template = \"./template/\" + lista_immagini[it + 1]\r\n                    img_rgb = outs[idx]\r\n                    img_gray = cv2.cvtColor(img_rgb, cv2.COLOR_BGR2GRAY)\r\n                    template = cv2.imread(immage_template, 0)\r\n\r\n                    hp=0\r\n                    wp=0\r\n\r\n                    is_detected, matches, ret_kp1, ret_kp2, score = utils.ORB(img_gray, template, titolo_quadro)\r\n                    if score < min_score:\r\n                        min_score = score\r\n                        text = \"{} - score: {}\".format(titolo_quadro,score)\r\n\r\n                        min_idx = it\r\n                        array1 = np.array((ret_kp1), dtype=np.float32)\r\n                        array2 = np.array((ret_kp2), dtype=np.float32)\r\n\r\n                if min_score < 100000:\r\n                    id = min_idx\r\n                    print(\"idx\" + str(id))\r\n                    warped = utils.rectify_image_with_correspondences(outs[idx], array2[:10], array1[:10], 1000, 1000)\r\n                    cv2.imshow(\"warped_with_ORB\", warped)\r\n                    cv2.imshow('im', outs[idx])\r\n                    cv2.waitKey()\r\n                    cv2.destroyAllWindows()\r\n                else:\r\n                    #da modificare goodFeaturesToTrack perchè spesso non trova 4 corner\r\n                    imm = masks[idx][0]\r\n                    out_bin_pad = cv2.copyMakeBorder(imm, 20, 20, 20, 20, 0)\r\n                    out_imm_pad = cv2.copyMakeBorder(outs[idx], 20, 20, 20, 20, 0)\r\n                    corners = cv2.goodFeaturesToTrack(out_bin_pad, 4, 0.4, 80)\r\n                    corners = np.int0(corners)\r\n                    if corners is not None:\r\n                        for i in corners:\r\n                            x, y = i.ravel()\r\n                            cv2.circle(out_imm_pad, (x, y), 3, 255, -1)\r\n\r\n                    print(\"corners {}\".format(len(corners)))\r\n\r\n                    if len(corners) == 4:\r\n                        corners = np.squeeze(corners, axis=1)\r\n                        warped = utils.rectify_image(out_imm_pad, corners)\r\n                        warped = cv2.copyMakeBorder(warped, 50, 50, 50, 50, 0)\r\n                        out_imm_pad = cv2.copyMakeBorder(out_imm_pad, 50, 50, 50, 50, 0)\r\n                        cv2.imshow(\"warped_with_corner\", warped)\r\n                        cv2.imshow('im', out_imm_pad)\r\n                        cv2.waitKey()\r\n                        cv2.destroyAllWindows()\r\n                '''\r\n                utils.drawLabel(rects[idx][2], rects[idx][3], rects[idx][0], rects[idx][1], text, frame)\r\n\r\n        #output dopo aver iterato su tutti gli out del frame\r\n        frame = utils.fucking_yolo(frame, frame_height, frame_width)\r\n        print(\"X\")\r\n        cv2.imshow('detect', frame)\r\n        #cv2.waitKey()\r\n        #cv2.destroyAllWindows()\r\n\r\n        k = cv2.waitKey(5) & 0xFF\r\n        if k == ord(\"q\"):\r\n            break\r\n\r\n        # Write the frame into the file 'output.avi'\r\n        # out.write(frame)\r\n\r\n    # Break the loop\r\n    else:\r\n        break\r\n\r\n# When everything done, release the video capture and video write objects\r\ncap.release()\r\nout.release()\r\n\r\n# Closes all the frames\r\ncv2.destroyAllWindows()\r\ncv2.waitKey(1)\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- main.py	(revision 3cc94788772a68093c7c09518c8c29767c3e79f1)
++++ main.py	(date 1588757988562)
+@@ -10,15 +10,16 @@
+ video_madonna_bimbo = './videos/VIRB0392.MP4'
+ video_boh = "./videos/VID_20180529_112440.mp4" #ci vuole gabor filter da 30
+ video_trim = "./videos/trim.mp4"
++video_people = "./videos/trim_2.mp4"
+ 
+-cap = cv2.VideoCapture(video_madonna_bimbo)
++cap = cv2.VideoCapture(video_people)
+ 
+ if (cap.isOpened() == False):
+     print("Unable to read camera feed")
+ 
+ frame_width = int(cap.get(3))
+ frame_height = int(cap.get(4))
+-out = cv2.VideoWriter('outpy.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30, (frame_width, frame_height))
++v_out = cv2.VideoWriter('outpy.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30, (frame_width, frame_height))
+ 
+ # global used variable
+ color = (255, 255, 255)
+@@ -27,13 +28,28 @@
+ kernel3 = np.ones((7,7),np.uint8)
+ 
+ lista_titoli, lista_immagini = utils.carica_lista_cvs()
++# Load Yolo
++config = "./content/yolov3.cfg"
++weights = "./content/yolov3.weights"
++names = "./content/coco.names"
++
++net = cv2.dnn.readNet(weights, config)
++# net = cv2.dnn.readNetFromDarknet(weights, config)
++
++font = cv2.FONT_HERSHEY_PLAIN
++classes = []
++with open(names, "r") as f:
++    classes = [line.strip() for line in f.readlines()]
++layer_names = net.getLayerNames()
++output_layers = [layer_names[i[0] - 1] for i in net.getUnconnectedOutLayers()]
++colors = np.random.uniform(0, 255, size=(len(classes), 3))
+ 
+ while (True):
+     ret, frame = cap.read()
+     rects = []
+ 
+     if ret:
+-
++        '''
+         src = utils.hybrid_edge_detection(frame)
+ 
+         conts, heirarchy = cv2.findContours(src, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+@@ -80,7 +96,7 @@
+                 min_idx = -1
+                 min_score = 100000
+                 text = "quadro"
+-                '''
++                
+                 for it in range(len(lista_immagini)- 1):
+                     # Read the main image
+                     titolo_quadro = lista_titoli[it + 1]
+@@ -132,12 +148,51 @@
+                         cv2.imshow('im', out_imm_pad)
+                         cv2.waitKey()
+                         cv2.destroyAllWindows()
+-                '''
++                
+                 utils.drawLabel(rects[idx][2], rects[idx][3], rects[idx][0], rects[idx][1], text, frame)
+-
++        '''
+         #output dopo aver iterato su tutti gli out del frame
+-        frame = utils.fucking_yolo(frame, frame_height, frame_width)
+-        print("X")
++        #frame = utils.fucking_yolo(frame, frame_height, frame_width)
++        # Detecting objects
++        blob = cv2.dnn.blobFromImage(frame, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
++
++        net.setInput(blob)
++        outs = net.forward(output_layers)
++
++        # Showing informations on the screen
++        class_ids = []
++        confidences = []
++        boxes = []
++        for out in outs:
++            for detection in out:
++                scores = detection[5:]
++                class_id = np.argmax(scores)
++                confidence = scores[class_id]
++                if confidence > 0.2:
++                    # Object detected
++                    center_x = int(detection[0] * frame_width)
++                    center_y = int(detection[1] * frame_height)
++                    w = int(detection[2] * frame_width)
++                    h = int(detection[3] * frame_height)
++
++                    # Rectangle coordinates
++                    x = int(center_x - w / 2)
++                    y = int(center_y - h / 2)
++
++                    boxes.append([x, y, w, h])
++                    confidences.append(float(confidence))
++                    class_ids.append(class_id)
++
++        indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.8, 0.3)
++
++        for i in range(len(boxes)):
++            if i in indexes:
++                x, y, w, h = boxes[i]
++                label = str(classes[class_ids[i]])
++                confidence = confidences[i]
++                color = colors[class_ids[i]]
++                utils.drawLabel(w, h, x, y, "person " + str(round(confidence, 2)), frame)
++
+         cv2.imshow('detect', frame)
+         #cv2.waitKey()
+         #cv2.destroyAllWindows()
+@@ -147,7 +202,7 @@
+             break
+ 
+         # Write the frame into the file 'output.avi'
+-        # out.write(frame)
++        v_out.write(frame)
+ 
+     # Break the loop
+     else:
