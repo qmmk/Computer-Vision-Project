@@ -275,8 +275,8 @@ def hougesLinesAndCorner(image):
             cv2.line(out_line, (x1, y1), (x2, y2), (255, 255, 255), 1)
 
     # img_gray = cv2.cvtColor(out_line, cv2.COLOR_BGR2GRAY)
-    # cv2.imshow('out', out_line)
-    # cv2.waitKey()
+    #cv2.imshow('out', out_line)
+    #cv2.waitKey()
 
     corners = cv2.goodFeaturesToTrack(out_line, 4, 0.4, 80)
 

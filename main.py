@@ -27,7 +27,7 @@ video_persone_s = './videos/trim_2.mp4'
 video_facce = "./videos/20180206_114604.mp4"
 video_sono_le_11 = './videos/IMG_4082.MOV'
 
-cap = cv2.VideoCapture(video_persone_s)
+cap = cv2.VideoCapture(video_3)
 
 if not cap.isOpened():
     print("Unable to read camera feed")
@@ -37,16 +37,6 @@ frame_height = int(cap.get(4))
 out = cv2.VideoWriter('outpy.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30, (frame_width, frame_height))
 
 room = "Stanza generica"
-
-im = cv2.imread('etichetta1.jpg', cv2.IMREAD_COLOR)
-# im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
-hist1 = utils.hist_compute_orb(im)
-
-im = cv2.imread('etichetta2.jpg', cv2.IMREAD_COLOR)
-hist2 = utils.hist_compute_orb(im)
-
-im = cv2.imread('etichetta3.jpg', cv2.IMREAD_COLOR)
-hist3 = utils.hist_compute_orb(im)
 
 template1 = cv2.imread('match1.jpg', cv2.IMREAD_COLOR)
 template2 = cv2.imread('match2.jpg', cv2.IMREAD_COLOR)
@@ -68,7 +58,6 @@ while (True):
         #riduzioni falsi positivi
         listindexfree = utils.shrinkenCountoursList(hulls,frame,rects)
 
-
         blank = np.zeros_like(frame)
         for idk in listindexfree:
             cv2.drawContours(blank, hulls, idk, (255, 255, 255), -1)
@@ -86,69 +75,55 @@ while (True):
             hist = utils.compute_histogram(outs[idx])
             # entropy = utils.entropy(hist)
             # print(entropy)
-            utils.showImageAndStop("cropped", outs[idx])
-            # cv2.imwrite("etichett.jpg",outs[idx])
-
             hist0 = utils.hist_compute_orb(green[idx])
+
             entropy = utils.entropy(hist0)
             print(entropy)
 
-            #MA VA FATTO IN GRAY?
             #se è troppo piccolo scartalo
-            if outs[idx].shape[0] >= template3.shape[0] :
+            if outs[idx].shape[0] >= template3.shape[0]:
+
+                utils.showImageAndStop("cropped", outs[idx])
                 res1 = cv2.matchTemplate(outs[idx], template1, cv2.TM_CCORR_NORMED)
                 res2 = cv2.matchTemplate(outs[idx], template2, cv2.TM_CCORR_NORMED)
                 res3 = cv2.matchTemplate(outs[idx], template3, cv2.TM_CCORR_NORMED)
 
-                #min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res3)
-                match1 = np.where(res1 >= 0.95)
-                match2 = np.where(res2 >= 0.95)
-                match3 = np.where(res3 >= 0.95)
+                min_val1, max_val1, min_loc1, max_loc1 = cv2.minMaxLoc(res1)
+                min_val2, max_val2, min_loc2, max_loc2 = cv2.minMaxLoc(res2)
+                min_val3, max_val3, min_loc3, max_loc3 = cv2.minMaxLoc(res3)
+                print("max match 1: {}".format(max_val1))
+                print("max match 2: {}".format(max_val2))
+                print("max match 3: {}".format(max_val3))
 
-                #print("max val 3: {}".format(max_val))
-                nMatch1 = np.array(match1).shape[1]
-                nMatch2 = np.array(match2).shape[1]
-                nMatch3 = np.array(match3).shape[1]
-                print("len match 1: {}".format(nMatch1))
-                print("len match 2: {}".format(nMatch2))
-                print("len match 3: {}".format(nMatch3))
+                isBig = False
+                if outs[idx].shape[0] > 300 and outs[idx].shape[1] > 300:
+                    isBig = True
 
-                distance1 = cv2.compareHist(hist0, hist1, cv2.HISTCMP_INTERSECT)
-                distance2 = cv2.compareHist(hist0, hist2, cv2.HISTCMP_INTERSECT)
-                distance3 = cv2.compareHist(hist0, hist3, cv2.HISTCMP_INTERSECT)
+                if entropy >= 2 and ((max_val1 <= 0.96 and max_val2 <= 0.96 and max_val3 <= 0.96) or isBig):
 
-                print("distance1: {}".format(distance1))
-                print("distance2: {}".format(distance2))
-                print("distance3: {}".format(distance3))
-
-                # con cv2.HISTCMP_BHATTACHARYYA circa 0.63 0.55 0.63
-                # cv2.HISTCMP_INTERSECT
-                # and distance2 >= 0.02
-                if entropy >= 3 and nMatch1 <= 50 and nMatch2 <= 50 and nMatch3 <= 50 and distance1 <= 1.2 and distance2 <= 1.2 and distance3 <= 1.2:
-
-                # RECTIFICATION
-                text, tmp = rectify.detectKeyPoints(outs[idx])
-                if tmp != "":
-                    room = tmp
-                imm = masks[idx]
-                out_bin_pad = cv2.copyMakeBorder(imm, 50, 50, 50, 50, 0)
-                out_imm_pad = cv2.copyMakeBorder(outs[idx], 50, 50, 50, 50, 0)
-                corners = rectify.hougesLinesAndCorner(out_bin_pad)
-                utils.showImageAndStop("cropped",out_imm_pad)
+                    # RECTIFICATION
+                    text, tmp = rectify.detectKeyPoints(outs[idx])
+                    if tmp != "":
+                        room = tmp
+                    imm = masks[idx]
+                    out_bin_pad = cv2.copyMakeBorder(imm, 50, 50, 50, 50, 0)
+                    out_imm_pad = cv2.copyMakeBorder(outs[idx], 50, 50, 50, 50, 0)
+                    corners = rectify.hougesLinesAndCorner(out_bin_pad)
+                    #utils.showImageAndStop("cropped",out_imm_pad)
 
 
-                if len(corners) == 4 and text == 'quadro':
-                    p = rectify.order_corners(corners)
-                    # se order_corners non dà errore
-                    if p != 0:
-                        warped = rectify.rectify_image_2(out_imm_pad.shape[0], out_imm_pad.shape[1], out_imm_pad, p)
-                        # se rectify_image_2 non dà errore
-                        if not np.isscalar(warped):
-                            text, tmp = rectify.detectKeyPoints(warped)
-                            if tmp != "":
-                                room = tmp
+                    if len(corners) == 4 and text == 'quadro':
+                        p = rectify.order_corners(corners)
+                        # se order_corners non dà errore
+                        if p != 0:
+                            warped = rectify.rectify_image_2(out_imm_pad.shape[0], out_imm_pad.shape[1], out_imm_pad, p)
+                            # se rectify_image_2 non dà errore
+                            if not np.isscalar(warped):
+                                text, tmp = rectify.detectKeyPoints(warped)
+                                if tmp != "":
+                                    room = tmp
 
-                utils.drawLabel(rects[idx][2], rects[idx][3], rects[idx][0], rects[idx][1], text, frame)
+                    utils.drawLabel(rects[idx][2], rects[idx][3], rects[idx][0], rects[idx][1], text, frame)
 
 
 
