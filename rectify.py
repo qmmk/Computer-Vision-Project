@@ -189,6 +189,7 @@ def ORB(im1, im2, titolo_immagine):
     retkp2 = []
     ngood = 10
 
+
     for m in matches:
         if m.distance < 40:  # 50
             good.append(m)
@@ -204,11 +205,18 @@ def ORB(im1, im2, titolo_immagine):
         good = sorted(good, key=lambda x: x.distance)
         score = sum(x.distance for x in good[:ngood])
         # print("{} -> score: {}".format(titolo_immagine, score))
+
         if score < 350:  # 230
+            """
+            hist1 = utils.hist_compute_orb(im1)
+            hist2 = utils.hist_compute_orb(im2)
+            distance1 = cv2.compareHist(hist1, hist2, cv2.HISTCMP_INTERSECT)
+            print('distance' + str(distance1))
+            if distance1 <= 1.5:
+                print('check') 
+            """
             img3 = cv2.drawMatches(im1, kp1, im2, kp2, good[:ngood], None, flags=2)
-            # cv2.imshow(titolo_immagine, img3)
-            # cv2.waitKey()
-            # cv2.destroyAllWindows()
+            utils.showImageAndStop(titolo_immagine,img3)
             return True, good, retkp1, retkp2, score
         else:
             return False, 0, 0, 0, 100000
@@ -241,7 +249,7 @@ def detectKeyPoints(img_rgb):
     if min_score < 100000:
         id = min_idx
         print("idx" + str(id))
-        warped = rectify_image_with_correspondences(img_rgb, array2[:8], array1[:8], 1000, 1000)
+        warped = rectify_image_with_correspondences(img_rgb, array2[:10], array1[:10], 1000, 1000)
         #utils.showImageAndStop(text, warped)
 
     return text, room

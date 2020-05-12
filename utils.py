@@ -75,3 +75,57 @@ def showImageAndStop(name, im):
     cv2.imshow(name, im)
     cv2.waitKey()
     cv2.destroyAllWindows()
+
+def contourIntersect(contours,frame):
+    blank = np.zeros(frame.shape[0:2])
+    conts = []
+    intersection = []
+    for i in range(len(contours)):
+        for j in range(len(contours)):
+            if i != j:
+                checkcontours = [contours[i], contours[j]]
+                # Copy each contour into its own image and fill it with '1'
+                image1 = cv2.drawContours(blank.copy(), checkcontours, 0, 1)
+                image2 = cv2.drawContours(blank.copy(), checkcontours, 1, 1)
+
+                mat = cv2.bitwise_and(image1, image2)
+                intersection.append(mat)
+
+        for k in intersection:
+            if k.any():
+                intersection = []
+
+        if len(intersection) != 0:
+            conts.append(i)
+
+    return conts
+
+def checkInside(rects,index):
+    new_index = []
+    for i in index:
+        for j in index:
+            if i != j:
+                x1, y1, w, h = rects[i]
+                x2, y2 = x1+w, y1+h
+                X, Y, W, H = rects[j]
+                if (x1 < X and X < x2):
+                    if (y1 < Y and Y < y2):
+                        new_index.append(j)
+
+    return new_index
+
+def reduceListOuts(outs,rects,listindexfree):
+    out_ = []
+    rect_ = []
+    for i in range(len(outs)):
+        if i in listindexfree:
+            out_.append(outs[i])
+            rect_.append(rects[i])
+
+    return out_,rect_
+
+def shrinkenCountoursList(hulls,frame,rects):
+    listindexfree = contourIntersect(hulls, frame)
+    listindexinside = checkInside(rects, listindexfree)
+    listindexfree = set(listindexfree) - set(listindexinside)
+    return listindexfree
