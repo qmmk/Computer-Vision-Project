@@ -26,7 +26,7 @@ video_nome_lungo = './videos/VID_20180529_112539.mp4'
 video_persone_s = './videos/trim_2.mp4'
 video_facce = "./videos/20180206_114604.mp4"
 
-cap = cv2.VideoCapture(video_3)
+cap = cv2.VideoCapture(video_madonna_bimbo)
 
 if not cap.isOpened():
     print("Unable to read camera feed")
@@ -46,6 +46,10 @@ hist2 = utils.hist_compute_orb(im)
 
 im = cv2.imread('etichetta3.jpg', cv2.IMREAD_COLOR)
 hist3 = utils.hist_compute_orb(im)
+
+template1 = cv2.imread('match1.jpg', cv2.IMREAD_COLOR)
+template2 = cv2.imread('match2.jpg', cv2.IMREAD_COLOR)
+template3 = cv2.imread('match3.jpg', cv2.IMREAD_COLOR)
 
 while (True):
     ret, frame = cap.read()
@@ -72,48 +76,69 @@ while (True):
             hist = utils.compute_histogram(outs[idx])
             # entropy = utils.entropy(hist)
             # print(entropy)
-            # utils.showImageAndStop("cropped", outs[idx])
-            # cv2.imwrite("etichetta1.jpg",outs[idx])
+            utils.showImageAndStop("cropped", outs[idx])
+            # cv2.imwrite("etichett.jpg",outs[idx])
 
             hist0 = utils.hist_compute_orb(outs[idx])
             entropy = utils.entropy(hist0)
             print(entropy)
-            distance1 = cv2.compareHist(hist0, hist1, cv2.HISTCMP_INTERSECT)
-            distance2 = cv2.compareHist(hist0, hist2, cv2.HISTCMP_INTERSECT)
-            distance3 = cv2.compareHist(hist0, hist3, cv2.HISTCMP_INTERSECT)
 
-            # print("distance1: {}".format(distance1))
-            # print("distance2: {}".format(distance2))
-            # print("distance3: {}".format(distance3))
+            #MA VA FATTO IN GRAY?
+            #se è troppo piccolo scartalo
+            if outs[idx].shape[0] >= template3.shape[0] :
+                res1 = cv2.matchTemplate(outs[idx], template1, cv2.TM_CCORR_NORMED)
+                res2 = cv2.matchTemplate(outs[idx], template2, cv2.TM_CCORR_NORMED)
+                res3 = cv2.matchTemplate(outs[idx], template3, cv2.TM_CCORR_NORMED)
 
-            # con cv2.HISTCMP_BHATTACHARYYA circa 0.63 0.55 0.63
-            # cv2.HISTCMP_INTERSECT
-            # and distance2 >= 0.02
-            if entropy >= 6 and distance1 <= 1.5 and distance2 <= 1.5 and distance3 <= 1.5:
+                #min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res3)
+                match1 = np.where(res1 >= 0.95)
+                match2 = np.where(res2 >= 0.95)
+                match3 = np.where(res3 >= 0.95)
 
-                # RECTIFICATION
-                text, tmp = rectify.detectKeyPoints(outs[idx])
-                if tmp != "":
-                    room = tmp
-                imm = masks[idx]
-                out_bin_pad = cv2.copyMakeBorder(imm, 50, 50, 50, 50, 0)
-                out_imm_pad = cv2.copyMakeBorder(outs[idx], 50, 50, 50, 50, 0)
-                corners = rectify.hougesLinesAndCorner(out_bin_pad)
-                # utils.showImageAndStop("cropped",out_imm_pad)
+                #print("max val 3: {}".format(max_val))
+                nMatch1 = np.array(match1).shape[1]
+                nMatch2 = np.array(match2).shape[1]
+                nMatch3 = np.array(match3).shape[1]
+                print("len match 1: {}".format(nMatch1))
+                print("len match 2: {}".format(nMatch2))
+                print("len match 3: {}".format(nMatch3))
 
-                if len(corners) == 4:
-                    p = rectify.order_corners(corners)
-                    # se order_corners non dà errore
-                    if p != 0:
-                        warped = rectify.rectify_image_2(out_imm_pad.shape[0], out_imm_pad.shape[1], out_imm_pad, p)
-                        # se rectify_image_2 non dà errore
-                        if not np.isscalar(warped):
-                            # utils.showImageAndStop('wrap', warped)
-                            text, tmp = rectify.detectKeyPoints(warped)
-                            if tmp != "":
-                                room = tmp
+                distance1 = cv2.compareHist(hist0, hist1, cv2.HISTCMP_INTERSECT)
+                distance2 = cv2.compareHist(hist0, hist2, cv2.HISTCMP_INTERSECT)
+                distance3 = cv2.compareHist(hist0, hist3, cv2.HISTCMP_INTERSECT)
 
-                utils.drawLabel(rects[idx][2], rects[idx][3], rects[idx][0], rects[idx][1], text, frame)
+                print("distance1: {}".format(distance1))
+                print("distance2: {}".format(distance2))
+                print("distance3: {}".format(distance3))
+
+                # con cv2.HISTCMP_BHATTACHARYYA circa 0.63 0.55 0.63
+                # cv2.HISTCMP_INTERSECT
+                # and distance2 >= 0.02
+                if entropy >= 3 and nMatch1 <= 50 and nMatch2 <= 50 and nMatch3 <= 50 and distance1 <= 1.2 and distance2 <= 1.2 and distance3 <= 1.2:
+
+                    # RECTIFICATION
+                    text, tmp = rectify.detectKeyPoints(outs[idx])
+                    if tmp != "":
+                        room = tmp
+                    imm = masks[idx]
+                    out_bin_pad = cv2.copyMakeBorder(imm, 50, 50, 50, 50, 0)
+                    out_imm_pad = cv2.copyMakeBorder(outs[idx], 50, 50, 50, 50, 0)
+                    corners = rectify.hougesLinesAndCorner(out_bin_pad)
+                    utils.showImageAndStop("cropped",out_imm_pad)
+
+                    if len(corners) == 4:
+                        p = rectify.order_corners(corners)
+                        # se order_corners non dà errore
+                        if p != 0:
+                            warped = rectify.rectify_image_2(out_imm_pad.shape[0], out_imm_pad.shape[1], out_imm_pad, p)
+                            # se rectify_image_2 non dà errore
+                            if not np.isscalar(warped):
+                                # utils.showImageAndStop('wrap', warped)
+                                text, tmp = rectify.detectKeyPoints(warped)
+                                if tmp != "":
+                                    room = tmp
+
+                    utils.drawLabel(rects[idx][2], rects[idx][3], rects[idx][0], rects[idx][1], text, frame)
 
         # PERSON
         frame = yolo.detect_person(frame, frame_height, frame_width)
