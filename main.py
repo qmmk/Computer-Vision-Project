@@ -26,6 +26,8 @@ video_nome_lungo = './videos/VID_20180529_112539.mp4'
 video_persone_s = './videos/trim_2.mp4'
 video_facce = "./videos/20180206_114604.mp4"
 video_sono_le_11 = './videos/IMG_4082.MOV'
+video_fish_eye = './videos/GOPR5818.MP4'#da scaricare
+video_statua_fish_eye = './videos/GOPR5831.MP4'#da scaricare
 
 cap = cv2.VideoCapture(video_3)
 

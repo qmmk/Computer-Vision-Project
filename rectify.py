@@ -112,11 +112,7 @@ def rectify_image_2(rows, cols, img, p):
 
         dst = cv2.warpPerspective(img, M, (W, H))
 
-        # cv2.imshow('img', img)
-        # cv2.imshow('dst', dst)
-
-        # cv2.waitKey(0)
-    except ValueError:
+    except Exception:
         print("error in the formula")
         return 0
 
