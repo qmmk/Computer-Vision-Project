@@ -185,18 +185,36 @@ def get_contours(src):
 def cropping_frame(frame, hulls, src_mask):
     outs = []
     masks = []
+    green = []
 
     # loop per estrarre e appendere a liste predifinite crop immagini
     for i in range(len(hulls)):
         outs.append(image_crop(frame, hulls, i))
         masks.append(image_crop_bin(src_mask, hulls, i))
-    return outs, masks
+        green.append(image_crop_green(frame, hulls, i))
+    return outs, masks, green
 
 
 def image_crop(frame, hull_list, i):
     mask = np.zeros_like(frame)  # Create mask where white is what we want, black otherwise
     cv2.drawContours(mask, hull_list, i, color, -1)  # Draw filled contour in mask
     out = np.zeros_like(frame)  # Extract out the object and place into output image
+    out[mask == 255] = frame[mask == 255]
+
+    # Now crop
+    (y, x, z) = np.where(mask == 255)
+    # (y, x) = np.where(mask == 255)
+
+    (topy, topx) = (np.min(y), np.min(x))
+    (bottomy, bottomx) = (np.max(y), np.max(x))
+    out = out[topy:bottomy + 1, topx:bottomx + 1]
+    return out
+
+def image_crop_green(frame, hull_list, i):
+    mask = np.zeros_like(frame)  # Create mask where white is what we want, black otherwise
+    cv2.drawContours(mask, hull_list, i, color, -1)  # Draw filled contour in mask
+    out = np.zeros_like(frame)  # Extract out the object and place into output image
+    out[:, :, 1] = 255
     out[mask == 255] = frame[mask == 255]
 
     # Now crop

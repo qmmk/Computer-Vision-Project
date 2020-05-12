@@ -25,8 +25,9 @@ video_3 = './videos/GOPR2039.MP4'
 video_nome_lungo = './videos/VID_20180529_112539.mp4'
 video_persone_s = './videos/trim_2.mp4'
 video_facce = "./videos/20180206_114604.mp4"
+video_sono_le_11 = './videos/IMG_4082.MOV'
 
-cap = cv2.VideoCapture(video_madonna_bimbo)
+cap = cv2.VideoCapture(video_persone_s)
 
 if not cap.isOpened():
     print("Unable to read camera feed")
@@ -62,14 +63,23 @@ while (True):
         # CONTOURS
         rects, hulls, src_mask = detect.get_contours(src)
 
-        # codice per fare output ROI varie
-        # cv2.imshow('im', frame)
-        # cv2.imshow('im', src_mask)
-        # cv2.imshow('imh', houges)
-        # cv2.imshow('cont_h', conts_h)
+        #estrae gli indici delle roi senza intersezioni e rimuove gli indici di roi contenute in altre roi
+        #utile per aumentare le performance e iterare solo su contorni certi
+        #riduzioni falsi positivi
+        listindexfree = utils.shrinkenCountoursList(hulls,frame,rects)
+
+
+        blank = np.zeros_like(frame)
+        for idk in listindexfree:
+            cv2.drawContours(blank, hulls, idk, (255, 255, 255), -1)
+
+        utils.showImageAndStop('ROI',blank)
 
         # CROP
-        outs, masks = detect.cropping_frame(frame, hulls, src_mask)
+        outs, masks, green = detect.cropping_frame(frame, hulls, src_mask)
+
+        # riduzione effettiva della lista di contorni e rect tramite index calcolati
+        outs,rects = utils.reduceListOuts(outs,rects,listindexfree)
 
         # FEATURE EXTRACTION
         for idx in range(len(outs)):
@@ -79,7 +89,7 @@ while (True):
             utils.showImageAndStop("cropped", outs[idx])
             # cv2.imwrite("etichett.jpg",outs[idx])
 
-            hist0 = utils.hist_compute_orb(outs[idx])
+            hist0 = utils.hist_compute_orb(green[idx])
             entropy = utils.entropy(hist0)
             print(entropy)
 
@@ -116,29 +126,32 @@ while (True):
                 # and distance2 >= 0.02
                 if entropy >= 3 and nMatch1 <= 50 and nMatch2 <= 50 and nMatch3 <= 50 and distance1 <= 1.2 and distance2 <= 1.2 and distance3 <= 1.2:
 
-                    # RECTIFICATION
-                    text, tmp = rectify.detectKeyPoints(outs[idx])
-                    if tmp != "":
-                        room = tmp
-                    imm = masks[idx]
-                    out_bin_pad = cv2.copyMakeBorder(imm, 50, 50, 50, 50, 0)
-                    out_imm_pad = cv2.copyMakeBorder(outs[idx], 50, 50, 50, 50, 0)
-                    corners = rectify.hougesLinesAndCorner(out_bin_pad)
-                    utils.showImageAndStop("cropped",out_imm_pad)
+                # RECTIFICATION
+                text, tmp = rectify.detectKeyPoints(outs[idx])
+                if tmp != "":
+                    room = tmp
+                imm = masks[idx]
+                out_bin_pad = cv2.copyMakeBorder(imm, 50, 50, 50, 50, 0)
+                out_imm_pad = cv2.copyMakeBorder(outs[idx], 50, 50, 50, 50, 0)
+                corners = rectify.hougesLinesAndCorner(out_bin_pad)
+                utils.showImageAndStop("cropped",out_imm_pad)
 
-                    if len(corners) == 4:
-                        p = rectify.order_corners(corners)
-                        # se order_corners non dà errore
-                        if p != 0:
-                            warped = rectify.rectify_image_2(out_imm_pad.shape[0], out_imm_pad.shape[1], out_imm_pad, p)
-                            # se rectify_image_2 non dà errore
-                            if not np.isscalar(warped):
-                                # utils.showImageAndStop('wrap', warped)
-                                text, tmp = rectify.detectKeyPoints(warped)
-                                if tmp != "":
-                                    room = tmp
 
-                    utils.drawLabel(rects[idx][2], rects[idx][3], rects[idx][0], rects[idx][1], text, frame)
+                if len(corners) == 4 and text == 'quadro':
+                    p = rectify.order_corners(corners)
+                    # se order_corners non dà errore
+                    if p != 0:
+                        warped = rectify.rectify_image_2(out_imm_pad.shape[0], out_imm_pad.shape[1], out_imm_pad, p)
+                        # se rectify_image_2 non dà errore
+                        if not np.isscalar(warped):
+                            text, tmp = rectify.detectKeyPoints(warped)
+                            if tmp != "":
+                                room = tmp
+
+                utils.drawLabel(rects[idx][2], rects[idx][3], rects[idx][0], rects[idx][1], text, frame)
+
+
+
 
         # PERSON
         frame = yolo.detect_person(frame, frame_height, frame_width)
