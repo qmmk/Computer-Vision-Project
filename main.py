@@ -26,10 +26,13 @@ video_nome_lungo = './videos/VID_20180529_112539.mp4'
 video_persone_s = './videos/trim_2.mp4'
 video_facce = "./videos/20180206_114604.mp4"
 video_sono_le_11 = './videos/IMG_4082.MOV'
-video_fish_eye = './videos/GOPR5818.MP4'#da scaricare
-video_statua_fish_eye = './videos/GOPR5831.MP4'#da scaricare
+video_fish_eye = './videos/GOPR5818.MP4'  # da scaricare
+video_statua_fish_eye = './videos/GOPR5831.MP4'  # da scaricare
+video_statua_negra = "./videos/IMG_7854.MOV"
+video_statue_col = "./videos/IMG_9630.MOV"
+video_statue_white = "./videos/IMG_4080.MOV"
 
-cap = cv2.VideoCapture(video_3)
+cap = cv2.VideoCapture(video_statue_white)
 
 if not cap.isOpened():
     print("Unable to read camera feed")
@@ -40,9 +43,9 @@ out = cv2.VideoWriter('outpy.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 3
 
 room = "Stanza generica"
 
-template1 = cv2.imread('match1.jpg', cv2.IMREAD_COLOR)
-template2 = cv2.imread('match2.jpg', cv2.IMREAD_COLOR)
-template3 = cv2.imread('match3.jpg', cv2.IMREAD_COLOR)
+template1 = cv2.imread('./match/match1.jpg', cv2.IMREAD_COLOR)
+template2 = cv2.imread('./match/match2.jpg', cv2.IMREAD_COLOR)
+template3 = cv2.imread('./match/match3.jpg', cv2.IMREAD_COLOR)
 
 while (True):
     ret, frame = cap.read()
@@ -55,22 +58,22 @@ while (True):
         # CONTOURS
         rects, hulls, src_mask = detect.get_contours(src)
 
-        #estrae gli indici delle roi senza intersezioni e rimuove gli indici di roi contenute in altre roi
-        #utile per aumentare le performance e iterare solo su contorni certi
-        #riduzioni falsi positivi
-        listindexfree = utils.shrinkenCountoursList(hulls,frame,rects)
+        # estrae gli indici delle roi senza intersezioni e rimuove gli indici di roi contenute in altre roi
+        # utile per aumentare le performance e iterare solo su contorni certi
+        # riduzioni falsi positivi
+        listindexfree = utils.shrinkenCountoursList(hulls, frame, rects)
 
         blank = np.zeros_like(frame)
         for idk in listindexfree:
             cv2.drawContours(blank, hulls, idk, (255, 255, 255), -1)
 
-        utils.showImageAndStop('ROI',blank)
+        utils.showImageAndStop('ROI', blank)
 
         # CROP
         outs, masks, green = detect.cropping_frame(frame, hulls, src_mask)
 
         # riduzione effettiva della lista di contorni e rect tramite index calcolati
-        outs,rects = utils.reduceListOuts(outs,rects,listindexfree)
+        outs, rects = utils.reduceListOuts(outs, rects, listindexfree)
 
         # FEATURE EXTRACTION
         for idx in range(len(outs)):
@@ -82,7 +85,7 @@ while (True):
             entropy = utils.entropy(hist0)
             print(entropy)
 
-            #se è troppo piccolo scartalo
+            # se è troppo piccolo scartalo
             if outs[idx].shape[0] >= template3.shape[0]:
 
                 utils.showImageAndStop("cropped", outs[idx])
@@ -111,8 +114,7 @@ while (True):
                     out_bin_pad = cv2.copyMakeBorder(imm, 50, 50, 50, 50, 0)
                     out_imm_pad = cv2.copyMakeBorder(outs[idx], 50, 50, 50, 50, 0)
                     corners = rectify.hougesLinesAndCorner(out_bin_pad)
-                    #utils.showImageAndStop("cropped",out_imm_pad)
-
+                    # utils.showImageAndStop("cropped",out_imm_pad)
 
                     if len(corners) == 4 and text == 'quadro':
                         p = rectify.order_corners(corners)
@@ -126,13 +128,11 @@ while (True):
                                     room = tmp
 
                     utils.drawLabel(rects[idx][2], rects[idx][3], rects[idx][0], rects[idx][1], text, frame)
-
-
-
-
+        '''
         # PERSON
-        frame = yolo.detect_person(frame, frame_height, frame_width)
-        frame = yolo.detect_eyes(frame)
+        frame, detected = yolo.detect_person(frame, frame_height, frame_width)
+        frame = yolo.detect_eyes(frame, detected)
+        '''
         cv2.imshow("detect", frame)
         # print(room)
 

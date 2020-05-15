@@ -2,7 +2,6 @@ import numpy as np
 import cv2
 import csv
 
-
 lista_cvs = './dataset/data.csv'
 
 
@@ -76,7 +75,8 @@ def showImageAndStop(name, im):
     cv2.waitKey()
     cv2.destroyAllWindows()
 
-def contourIntersect(contours,frame):
+
+def contourIntersect(contours, frame):
     blank = np.zeros(frame.shape[0:2])
     conts = []
     intersection = []
@@ -100,13 +100,14 @@ def contourIntersect(contours,frame):
 
     return conts
 
-def checkInside(rects,index):
+
+def checkInside(rects, index):
     new_index = []
     for i in index:
         for j in index:
             if i != j:
                 x1, y1, w, h = rects[i]
-                x2, y2 = x1+w, y1+h
+                x2, y2 = x1 + w, y1 + h
                 X, Y, W, H = rects[j]
                 if (x1 < X and X < x2):
                     if (y1 < Y and Y < y2):
@@ -114,7 +115,8 @@ def checkInside(rects,index):
 
     return new_index
 
-def reduceListOuts(outs,rects,listindexfree):
+
+def reduceListOuts(outs, rects, listindexfree):
     out_ = []
     rect_ = []
     for i in range(len(outs)):
@@ -122,9 +124,10 @@ def reduceListOuts(outs,rects,listindexfree):
             out_.append(outs[i])
             rect_.append(rects[i])
 
-    return out_,rect_
+    return out_, rect_
 
-def shrinkenCountoursList(hulls,frame,rects):
+
+def shrinkenCountoursList(hulls, frame, rects):
     listindexfree = contourIntersect(hulls, frame)
     listindexinside = checkInside(rects, listindexfree)
     listindexfree = set(listindexfree) - set(listindexinside)
