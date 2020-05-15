@@ -1,0 +1,77 @@
+Index: main.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import cv2\r\nimport numpy as np\r\nimport utils\r\nimport yolo\r\nimport detect\r\nimport rectify\r\nimport time\r\nfrom matplotlib import pyplot as plt\r\nfrom skimage.feature import hog\r\nfrom skimage import data, exposure\r\n\r\nvideo_stronzo = './videos/VIRB0391.MP4'\r\nvideo_normale = './videos/VIRB0414.MP4'\r\nvideo_tondo = './videos/GOPR2051.MP4'\r\nvideo_comune = './videos/VIRB0407.MP4'\r\nvideo_madonna_bimbo = './videos/VIRB0392.MP4'\r\nvideo_boh = \"./videos/VID_20180529_112440.mp4\"  # ci vuole gabor filter da 30\r\nvideo_comune_trim = \"./videos/trim.mp4\"\r\nvideo_trim = \"./videos/trimsss.mp4\"\r\nvideo_diverso = './videos/VIRB0415.MP4'\r\nvideo_gente = './videos/GOPR1940.MP4'\r\nvideo_1 = './videos/GOPR1928.MP4'\r\nvideo_2 = './videos/GOPR1947.MP4'\r\nvideo_3 = './videos/GOPR2039.MP4'\r\nvideo_nome_lungo = './videos/VID_20180529_112539.mp4'\r\nvideo_persone_s = './videos/trim_2.mp4'\r\nvideo_facce = \"./videos/20180206_114604.mp4\"\r\n\r\ncap = cv2.VideoCapture(video_3)\r\n\r\nif not cap.isOpened():\r\n    print(\"Unable to read camera feed\")\r\n\r\nframe_width = int(cap.get(3))\r\nframe_height = int(cap.get(4))\r\nout = cv2.VideoWriter('outpy.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30, (frame_width, frame_height))\r\n\r\nroom = \"Stanza generica\"\r\n\r\nim = cv2.imread('etichetta1.jpg', cv2.IMREAD_COLOR)\r\n# im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)\r\nhist1 = utils.hist_compute_orb(im)\r\n\r\nim = cv2.imread('etichetta2.jpg', cv2.IMREAD_COLOR)\r\nhist2 = utils.hist_compute_orb(im)\r\n\r\nim = cv2.imread('etichetta3.jpg', cv2.IMREAD_COLOR)\r\nhist3 = utils.hist_compute_orb(im)\r\n\r\nwhile (True):\r\n    ret, frame = cap.read()\r\n\r\n    if ret:\r\n\r\n        # DETECTION\r\n        src = detect.hybrid_edge_detection_V2(frame)\r\n\r\n        # CONTOURS\r\n        rects, hulls, src_mask = detect.get_contours(src)\r\n\r\n        # codice per fare output ROI varie\r\n        # cv2.imshow('im', frame)\r\n        # cv2.imshow('im', src_mask)\r\n        # cv2.imshow('imh', houges)\r\n        # cv2.imshow('cont_h', conts_h)\r\n\r\n        # CROP\r\n        outs, masks = detect.cropping_frame(frame, hulls, src_mask)\r\n\r\n        # FEATURE EXTRACTION\r\n        for idx in range(len(outs)):\r\n            hist = utils.compute_histogram(outs[idx])\r\n            # entropy = utils.entropy(hist)\r\n            # print(entropy)\r\n            # utils.showImageAndStop(\"cropped\", outs[idx])\r\n            # cv2.imwrite(\"etichetta1.jpg\",outs[idx])\r\n\r\n            hist0 = utils.hist_compute_orb(outs[idx])\r\n            entropy = utils.entropy(hist0)\r\n            print(entropy)\r\n            distance1 = cv2.compareHist(hist0, hist1, cv2.HISTCMP_INTERSECT)\r\n            distance2 = cv2.compareHist(hist0, hist2, cv2.HISTCMP_INTERSECT)\r\n            distance3 = cv2.compareHist(hist0, hist3, cv2.HISTCMP_INTERSECT)\r\n\r\n            # print(\"distance1: {}\".format(distance1))\r\n            # print(\"distance2: {}\".format(distance2))\r\n            # print(\"distance3: {}\".format(distance3))\r\n\r\n            # con cv2.HISTCMP_BHATTACHARYYA circa 0.63 0.55 0.63\r\n            # cv2.HISTCMP_INTERSECT\r\n            # and distance2 >= 0.02\r\n            if entropy >= 6 and distance1 <= 1.5 and distance2 <= 1.5 and distance3 <= 1.5:\r\n\r\n                # RECTIFICATION\r\n                text, tmp = rectify.detectKeyPoints(outs[idx])\r\n                if tmp != \"\":\r\n                    room = tmp\r\n                imm = masks[idx]\r\n                out_bin_pad = cv2.copyMakeBorder(imm, 50, 50, 50, 50, 0)\r\n                out_imm_pad = cv2.copyMakeBorder(outs[idx], 50, 50, 50, 50, 0)\r\n                corners = rectify.hougesLinesAndCorner(out_bin_pad)\r\n                # utils.showImageAndStop(\"cropped\",out_imm_pad)\r\n\r\n                if len(corners) == 4:\r\n                    p = rectify.order_corners(corners)\r\n                    # se order_corners non dà errore\r\n                    if p != 0:\r\n                        warped = rectify.rectify_image_2(out_imm_pad.shape[0], out_imm_pad.shape[1], out_imm_pad, p)\r\n                        # se rectify_image_2 non dà errore\r\n                        if not np.isscalar(warped):\r\n                            # utils.showImageAndStop('wrap', warped)\r\n                            text, tmp = rectify.detectKeyPoints(warped)\r\n                            if tmp != \"\":\r\n                                room = tmp\r\n\r\n                utils.drawLabel(rects[idx][2], rects[idx][3], rects[idx][0], rects[idx][1], text, frame)\r\n\r\n        # PERSON\r\n        frame = yolo.detect_person(frame, frame_height, frame_width)\r\n        frame = yolo.detect_eyes(frame)\r\n        cv2.imshow(\"detect\", frame)\r\n        # print(room)\r\n\r\n        k = cv2.waitKey(5) & 0xFF\r\n        if k == ord(\"q\"):\r\n            break\r\n\r\n        # Write the frame into the file 'output.avi'\r\n        out.write(frame)\r\n\r\n    # Break the loop\r\n    else:\r\n        break\r\n\r\n# When everything done, release the video capture and video write objects\r\ncap.release()\r\nout.release()\r\n\r\n# Closes all the frames\r\ncv2.destroyAllWindows()\r\ncv2.waitKey(1)\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- main.py	(revision f6b68f16a7585b363f67792ed344f91213ef2a21)
++++ main.py	(date 1589270052551)
+@@ -25,8 +25,12 @@
+ video_nome_lungo = './videos/VID_20180529_112539.mp4'
+ video_persone_s = './videos/trim_2.mp4'
+ video_facce = "./videos/20180206_114604.mp4"
++video_statua_1 = "./videos/GOPR2047.mp4"
++video_statue = "./videos/IMG_9630.MOV"
++video_statua_nera = "./videos/IMG_7854.MOV"
++video_status_std = "./videos/IMG_4080.MOV"
+ 
+-cap = cv2.VideoCapture(video_3)
++cap = cv2.VideoCapture(video_statue)
+ 
+ if not cap.isOpened():
+     print("Unable to read camera feed")
+@@ -116,8 +120,13 @@
+                 utils.drawLabel(rects[idx][2], rects[idx][3], rects[idx][0], rects[idx][1], text, frame)
+ 
+         # PERSON
+-        frame = yolo.detect_person(frame, frame_height, frame_width)
+-        frame = yolo.detect_eyes(frame)
++
++        # hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
++
++        #frame = yolo.detect_person(frame, frame_height, frame_width)
++        #frame = yolo.detect_eyes(frame)
++
++        # OUT
+         cv2.imshow("detect", frame)
+         # print(room)
+ 
+Index: yolo.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import cv2\r\nimport utils\r\nimport numpy as np\r\nimport dlib\r\n\r\n# Load Yolo\r\nconfig = \"./content/yolov3.cfg\"\r\nweights = \"./content/yolov3.weights\"\r\nnames = \"./content/coco.names\"\r\nface_dat = \"./content/shape_predictor_68_face_landmarks.dat\"\r\nnet = cv2.dnn.readNet(weights, config)\r\n\r\n# Face\r\ndetector = dlib.get_frontal_face_detector()\r\npredictor = dlib.shape_predictor(face_dat)\r\n\r\nwith open(names, \"r\") as f:\r\n    classes = [line.strip() for line in f.readlines()]\r\nlayer_names = net.getLayerNames()\r\noutput_layers = [layer_names[i[0] - 1] for i in net.getUnconnectedOutLayers()]\r\n\r\n\r\ndef detect_person(frame, height, width):\r\n    # Detecting objects\r\n    blob = cv2.dnn.blobFromImage(frame, 0.00392, (416, 416), (0, 0, 0), True, crop=False)\r\n\r\n    net.setInput(blob)\r\n    outs = net.forward(output_layers)\r\n\r\n    # Showing informations on the screen\r\n    class_ids = []\r\n    confidences = []\r\n    boxes = []\r\n    for out in outs:\r\n        for detection in out:\r\n            scores = detection[5:]\r\n            class_id = np.argmax(scores)\r\n            confidence = scores[class_id]\r\n            if confidence > 0.2:\r\n                # Object detected\r\n                center_x = int(detection[0] * width)\r\n                center_y = int(detection[1] * height)\r\n                w = int(detection[2] * width)\r\n                h = int(detection[3] * height)\r\n\r\n                # Rectangle coordinates\r\n                x = int(center_x - w / 2)\r\n                y = int(center_y - h / 2)\r\n\r\n                boxes.append([x, y, w, h])\r\n                confidences.append(float(confidence))\r\n                class_ids.append(class_id)\r\n\r\n    indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.8, 0.3)\r\n\r\n    for i in range(len(boxes)):\r\n        if i in indexes:\r\n            x, y, w, h = boxes[i]\r\n            label = str(classes[class_ids[i]])\r\n            confidence = confidences[i]\r\n            utils.drawLabel(w, h, x, y, label + \" \" + str(round(confidence, 2)), frame)\r\n    return frame\r\n\r\n\r\ndef midpoint(p1, p2):\r\n    return int((p1.x + p2.x) / 2), int((p1.y + p2.y) / 2)\r\n\r\n\r\ndef detect_eyes(frame):\r\n    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)\r\n    faces = detector(gray)\r\n    for face in faces:\r\n        landmarks = predictor(gray, face)\r\n\r\n        dx = midpoint(landmarks.part(37), landmarks.part(40))\r\n        sx = midpoint(landmarks.part(43), landmarks.part(46))\r\n\r\n        cv2.circle(frame, dx, 5, (0, 255, 0), -1)\r\n        cv2.circle(frame, sx, 5, (0, 255, 0), -1)\r\n\r\n    return frame\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- yolo.py	(revision f6b68f16a7585b363f67792ed344f91213ef2a21)
++++ yolo.py	(date 1589268858012)
+@@ -9,6 +9,7 @@
+ names = "./content/coco.names"
+ face_dat = "./content/shape_predictor_68_face_landmarks.dat"
+ net = cv2.dnn.readNet(weights, config)
++label = "person"
+ 
+ # Face
+ detector = dlib.get_frontal_face_detector()
+@@ -36,7 +37,7 @@
+             scores = detection[5:]
+             class_id = np.argmax(scores)
+             confidence = scores[class_id]
+-            if confidence > 0.2:
++            if confidence > 0.8:
+                 # Object detected
+                 center_x = int(detection[0] * width)
+                 center_y = int(detection[1] * height)
+@@ -54,9 +55,8 @@
+     indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.8, 0.3)
+ 
+     for i in range(len(boxes)):
+-        if i in indexes:
++        if i in indexes and str(classes[class_ids[i]]) == label:
+             x, y, w, h = boxes[i]
+-            label = str(classes[class_ids[i]])
+             confidence = confidences[i]
+             utils.drawLabel(w, h, x, y, label + " " + str(round(confidence, 2)), frame)
+     return frame
+diff --git content/yolov3.cfg content/yolov3.cfg
