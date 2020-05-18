@@ -121,6 +121,7 @@ def rectify_image_2(rows, cols, img, p):
 
 def rectify_image_with_correspondences(im, p1, p2, w, h):
     m, status = cv2.findHomography(p1, p2)
+    print(m)
     warped = cv2.warpPerspective(im, m, (w, h))
 
     return warped
@@ -144,20 +145,63 @@ def getLine(edges, frame):
 
         cv2.line(frame, (x1, y1), (x2, y2), (255, 255, 255), 2)
 
-    '''
-    lines = cv2.HoughLines(edges, 1, np.pi / 180, 200)
+def SIFT(img1,img2,titolo_immagine):
 
-    for rho, theta in lines[0]:
-        a = np.cos(theta)
-        b = np.sin(theta)
-        x0 = a * rho
-        y0 = b * rho
-        x1 = int(x0 + 1000 * (-b))
-        y1 = int(y0 + 1000 * (a))
-        x2 = int(x0 - 1000 * (-b))
-        y2 = int(y0 - 1000 * (a))
-        cv2.line(frame, (x1, y1), (x2, y2), (255, 255, 255), 2)
-    '''
+    sift = cv2.xfeatures2d.SIFT_create()
+
+    # find the keypoints and descriptors with SIFT
+    kp1, des1 = sift.detectAndCompute(img1, None)
+    kp2, des2 = sift.detectAndCompute(img2, None)
+
+    # BFMatcher with default params
+    bf = cv2.BFMatcher()
+    matches = bf.knnMatch(des1, des2, k=2)
+
+    good = []
+    goodn = []
+    retkp1 = []
+    retkp2 = []
+    ngood = 10
+
+    # ratio test as per Lowe's paper
+    for i, (m, n) in enumerate(matches):
+
+        if m.distance < 0.6 * n.distance:
+            good.append(m)
+            goodn.append(n)
+
+
+    if len(good) >= ngood:
+        good = sorted(good, key=lambda x: x.distance)
+        good = good[:ngood]
+        score = sum(x.distance for x in good[:ngood])
+
+        goodn = sorted(goodn, key=lambda x: x.distance)
+        goodn = goodn[:ngood]
+        score_n = sum(x.distance for x in goodn[:ngood])
+
+        print("score m: " + str(score))
+        print("score n: " + str(score_n))
+
+        for m in good:
+            # Get the matching keypoints for each of the images
+            img1_idx = m.queryIdx
+            img2_idx = m.trainIdx
+            (x1, y1) = kp1[img1_idx].pt
+            (x2, y2) = kp2[img2_idx].pt
+            retkp1.append((x1, y1))
+            retkp2.append((x2, y2))
+
+
+        if score < 1200:  # 230
+            img3 = cv2.drawMatches(img1, kp1, img2, kp2, good[:ngood], None, flags=2)
+            utils.showImageAndStop(titolo_immagine,img3)
+            return True, good, retkp1, retkp2, score
+        else:
+            return False, 0, 0, 0, 100000
+    else:
+        return False, 0, 0, 0, 100000
+
 
 
 def ORB(im1, im2, titolo_immagine):
@@ -197,32 +241,24 @@ def ORB(im1, im2, titolo_immagine):
             retkp1.append((x1, y1))
             retkp2.append((x2, y2))
 
+
     if len(good) >= ngood:
         good = sorted(good, key=lambda x: x.distance)
         score = sum(x.distance for x in good[:ngood])
         # print("{} -> score: {}".format(titolo_immagine, score))
 
         if score < 350:  # 230
-            """
-            hist1 = utils.hist_compute_orb(im1)
-            hist2 = utils.hist_compute_orb(im2)
-            distance1 = cv2.compareHist(hist1, hist2, cv2.HISTCMP_INTERSECT)
-            print('distance' + str(distance1))
-            if distance1 <= 1.5:
-                print('check') 
-            """
-            img3 = cv2.drawMatches(im1, kp1, im2, kp2, good[:ngood], None, flags=2)
-            utils.showImageAndStop(titolo_immagine,img3)
+            #img3 = cv2.drawMatches(im1, kp1, im2, kp2, good[:ngood], None, flags=2)
+            #utils.showImageAndStop(titolo_immagine,img3)
             return True, good, retkp1, retkp2, score
         else:
             return False, 0, 0, 0, 100000
     else:
         return False, 0, 0, 0, 100000
 
-
 def detectKeyPoints(img_rgb):
     min_idx = -1
-    min_score = 100000
+    min_score = 100000  #100000
     text = "quadro"
     room = ""
     for it in range(len(lista_immagini) - 1):
@@ -230,23 +266,30 @@ def detectKeyPoints(img_rgb):
         titolo_quadro = lista_titoli[it + 1]
         immage_template = "./template/" + lista_immagini[it + 1]
         stanza = lista_stanze[it + 1]
-        template = cv2.imread(immage_template, 1)
+        template = cv2.imread(immage_template, 0) #1 a colori
+        img_gray = cv2.cvtColor(img_rgb, cv2.COLOR_BGR2GRAY) # togli questa per settare a colori
 
         is_detected, matches, ret_kp1, ret_kp2, score = ORB(img_rgb, template, titolo_quadro)
-        if score < min_score:
+        #is_detected, matches, ret_kp1, ret_kp2, score = SIFT(img_gray, template, titolo_quadro)
+        print(score)
+
+
+        if score < min_score: #<
             min_score = score
             text = "{} - score: {}".format(titolo_quadro, score)
             room = "Stanza n.{}".format(stanza)
+            print(text)
 
             min_idx = it
             array1 = np.array((ret_kp1), dtype=np.float32)
             array2 = np.array((ret_kp2), dtype=np.float32)
 
-    if min_score < 100000:
+    if min_score < 100000: #100000
         id = min_idx
         print("idx" + str(id))
+
         warped = rectify_image_with_correspondences(img_rgb, array2[:8], array1[:8], 1000, 1000)
-        #utils.showImageAndStop(text, warped)
+        utils.showImageAndStop(text, warped)
 
     return text, room
 
@@ -270,10 +313,6 @@ def hougesLinesAndCorner(image):
 
             cv2.line(out_line, (x1, y1), (x2, y2), (255, 255, 255), 1)
 
-    # img_gray = cv2.cvtColor(out_line, cv2.COLOR_BGR2GRAY)
-    #cv2.imshow('out', out_line)
-    #cv2.waitKey()
-
     corners = cv2.goodFeaturesToTrack(out_line, 4, 0.4, 80)
 
     if corners is not None:
@@ -286,7 +325,5 @@ def hougesLinesAndCorner(image):
     else:
         corners = []
         return corners
-
-    # showImageAndStop('hough', out_line)
 
     return corners

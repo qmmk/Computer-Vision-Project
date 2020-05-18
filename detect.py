@@ -166,7 +166,7 @@ def otsu(frame):
 
 
 def get_contours(src):
-    conts, heirarchy = cv2.findContours(src, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    _,conts, heirarchy = cv2.findContours(src, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     src_mask = np.zeros_like(src)
     hull_list = []
     rects = []

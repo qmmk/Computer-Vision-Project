@@ -29,6 +29,9 @@ output_layers = [layer_names[i[0] - 1] for i in net.getUnconnectedOutLayers()]
 
 
 def detect_person(frame, height, width):
+    labels = []
+    rects = []
+
     isAlreadyDetected = False
     # Detecting objects
     blob = cv2.dnn.blobFromImage(frame, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
@@ -56,11 +59,12 @@ def detect_person(frame, height, width):
                 x = int(center_x - w / 2)
                 y = int(center_y - h / 2)
 
-                boxes.append([x, y, w, h])
+                boxes.append((x, y, w, h))
                 confidences.append(float(confidence))
                 class_ids.append(class_id)
 
     indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.8, 0.3)
+
 
     for i in range(len(boxes)):
         if i in indexes:
@@ -71,15 +75,20 @@ def detect_person(frame, height, width):
             distance2 = cv2.compareHist(hist0, hist2, cv2.HISTCMP_BHATTACHARYYA)
             distance3 = cv2.compareHist(hist0, hist3, cv2.HISTCMP_BHATTACHARYYA)
 
-            if distance1 <= 0.5 or distance2 <= 0.5 or distance3 <= 0.5:
+            if distance1 <= 0.6 or distance2 <= 0.6 or distance3 <= 0.6:
                 label = "statua"
                 isAlreadyDetected = True
             else:
                 label = "person"
 
             confidence = confidences[i]
-            utils.drawLabel(w, h, x, y, label + " " + str(round(confidence, 2)), frame)
-    return frame, isAlreadyDetected
+            rects.append(boxes[i])
+            labels.append(label + " " + str(round(confidence, 2)))
+            #utils.drawLabel(w, h, x, y, label + " " + str(round(confidence, 2)), frame)
+            #dict.append({'texts': label + " " + str(round(confidence, 2)), 'rects': boxes[i]})
+
+
+    return isAlreadyDetected, rects, labels
 
 
 def midpoint(p1, p2):
@@ -89,6 +98,8 @@ def midpoint(p1, p2):
 def detect_eyes(frame, detected):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     faces = detector(gray)
+    rects = []
+
     for face in faces:
         landmarks = predictor(gray, face)
         x = face.left()
@@ -101,13 +112,14 @@ def detect_eyes(frame, detected):
         distance2 = cv2.compareHist(hist0, hist2, cv2.HISTCMP_BHATTACHARYYA)
         distance3 = cv2.compareHist(hist0, hist3, cv2.HISTCMP_BHATTACHARYYA)
 
-        if (distance1 <= 0.5 or distance2 <= 0.5 or distance3 <= 0.5) and not detected:
-            label = "statua"
-            utils.drawLabel(w, h, x, y, label, frame)
+        if (distance1 <= 0.6 or distance2 <= 0.6 or distance3 <= 0.6) and not detected:
+            #label = "statua"
+            rects.append((x, y, w, h))
+
         else:
             dx = midpoint(landmarks.part(37), landmarks.part(40))
             sx = midpoint(landmarks.part(43), landmarks.part(46))
             cv2.circle(frame, dx, 5, (0, 255, 0), -1)
             cv2.circle(frame, sx, 5, (0, 255, 0), -1)
 
-    return frame
+    return frame, rects

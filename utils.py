@@ -109,8 +109,8 @@ def checkInside(rects, index):
                 x1, y1, w, h = rects[i]
                 x2, y2 = x1 + w, y1 + h
                 X, Y, W, H = rects[j]
-                if (x1 < X and X < x2):
-                    if (y1 < Y and Y < y2):
+                if (x1 < X and X < x2) and (x1 < (X+W) and (X+W) < x2):
+                    if (y1 < Y and Y < y2) and (y1 < (Y+H) and (Y+H) < y2):
                         new_index.append(j)
 
     return new_index

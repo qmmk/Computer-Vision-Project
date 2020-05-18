@@ -31,8 +31,9 @@ video_statua_fish_eye = './videos/GOPR5831.MP4'  # da scaricare
 video_statua_negra = "./videos/IMG_7854.MOV"
 video_statue_col = "./videos/IMG_9630.MOV"
 video_statue_white = "./videos/IMG_4080.MOV"
+video_statue_white_t = "./videos/IMG_4080_Trim.mp4"
 
-cap = cv2.VideoCapture(video_statue_white)
+cap = cv2.VideoCapture(video_statue_white_t)
 
 if not cap.isOpened():
     print("Unable to read camera feed")
@@ -47,10 +48,12 @@ template1 = cv2.imread('./match/match1.jpg', cv2.IMREAD_COLOR)
 template2 = cv2.imread('./match/match2.jpg', cv2.IMREAD_COLOR)
 template3 = cv2.imread('./match/match3.jpg', cv2.IMREAD_COLOR)
 
+
 while (True):
     ret, frame = cap.read()
 
     if ret:
+        dict = []
 
         # DETECTION
         src = detect.hybrid_edge_detection_V2(frame)
@@ -74,6 +77,7 @@ while (True):
 
         # riduzione effettiva della lista di contorni e rect tramite index calcolati
         outs, rects = utils.reduceListOuts(outs, rects, listindexfree)
+        print(rects)
 
         # FEATURE EXTRACTION
         for idx in range(len(outs)):
@@ -88,7 +92,7 @@ while (True):
             # se è troppo piccolo scartalo
             if outs[idx].shape[0] >= template3.shape[0]:
 
-                utils.showImageAndStop("cropped", outs[idx])
+                #utils.showImageAndStop("cropped", outs[idx])
                 res1 = cv2.matchTemplate(outs[idx], template1, cv2.TM_CCORR_NORMED)
                 res2 = cv2.matchTemplate(outs[idx], template2, cv2.TM_CCORR_NORMED)
                 res3 = cv2.matchTemplate(outs[idx], template3, cv2.TM_CCORR_NORMED)
@@ -121,19 +125,42 @@ while (True):
                         # se order_corners non dà errore
                         if p != 0:
                             warped = rectify.rectify_image_2(out_imm_pad.shape[0], out_imm_pad.shape[1], out_imm_pad, p)
-                            # se rectify_image_2 non dà errore
+                            #se rectify_image_2 non dà errore
                             if not np.isscalar(warped):
                                 text, tmp = rectify.detectKeyPoints(warped)
                                 if tmp != "":
                                     room = tmp
+                    dict.append({'texts': text, 'rects': rects[idx]})
 
-                    utils.drawLabel(rects[idx][2], rects[idx][3], rects[idx][0], rects[idx][1], text, frame)
-        '''
         # PERSON
-        frame, detected = yolo.detect_person(frame, frame_height, frame_width)
-        frame = yolo.detect_eyes(frame, detected)
-        '''
-        cv2.imshow("detect", frame)
+        detected, rects_yolo, label_yolo = yolo.detect_person(frame, frame_height, frame_width)
+        frame, rects_dec_eyes = yolo.detect_eyes(frame, detected)
+
+
+        # codice per controllo/aggiunta/rimozione rettangoli oggetti detctetati
+        for r in range(0, len(rects_yolo)):
+            dict.append({'texts': label_yolo[r], 'rects': rects_yolo[r]})
+        for r in range(0, len(rects_dec_eyes)):
+            dict.append({'texts': 'statua', 'rects': rects_dec_eyes[r]})
+
+        kkk = dict[:]
+        kk = []
+        for a in kkk:
+            kk.append(a['rects'])
+
+        listindexyolo = list(range(0, len(dict)))
+        listindexnoinside_yolo = utils.checkInside(kk, listindexyolo)
+        listindexnoinside_yolo.sort()
+
+        for index in reversed(listindexyolo):
+            if index in listindexnoinside_yolo:
+                a=dict.pop(index)
+        # fine controllo/aggiunta/rimozione
+
+        for di in dict:
+            utils.drawLabel(di['rects'][2], di['rects'][3], di['rects'][0], di['rects'][1], di['texts'], frame)
+
+        utils.showImageAndStop("detect", frame)
         # print(room)
 
         k = cv2.waitKey(5) & 0xFF
