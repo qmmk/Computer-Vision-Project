@@ -271,7 +271,7 @@ def detectKeyPoints(img_rgb):
 
         is_detected, matches, ret_kp1, ret_kp2, score = ORB(img_rgb, template, titolo_quadro)
         #is_detected, matches, ret_kp1, ret_kp2, score = SIFT(img_gray, template, titolo_quadro)
-        print(score)
+        #print(score)
 
 
         if score < min_score: #<

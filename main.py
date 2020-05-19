@@ -33,7 +33,7 @@ video_statue_col = "./videos/IMG_9630.MOV"
 video_statue_white = "./videos/IMG_4080.MOV"
 video_statue_white_t = "./videos/IMG_4080_Trim.mp4"
 
-cap = cv2.VideoCapture(video_statue_white_t)
+cap = cv2.VideoCapture(video_fish_eye)
 
 if not cap.isOpened():
     print("Unable to read camera feed")
@@ -47,6 +47,7 @@ room = "Stanza generica"
 template1 = cv2.imread('./match/match1.jpg', cv2.IMREAD_COLOR)
 template2 = cv2.imread('./match/match2.jpg', cv2.IMREAD_COLOR)
 template3 = cv2.imread('./match/match3.jpg', cv2.IMREAD_COLOR)
+template4 = cv2.imread('./match/match4.png', cv2.IMREAD_COLOR)
 
 
 while (True):
@@ -96,19 +97,23 @@ while (True):
                 res1 = cv2.matchTemplate(outs[idx], template1, cv2.TM_CCORR_NORMED)
                 res2 = cv2.matchTemplate(outs[idx], template2, cv2.TM_CCORR_NORMED)
                 res3 = cv2.matchTemplate(outs[idx], template3, cv2.TM_CCORR_NORMED)
+                res4 = cv2.matchTemplate(outs[idx], template4, cv2.TM_CCORR_NORMED)
 
                 min_val1, max_val1, min_loc1, max_loc1 = cv2.minMaxLoc(res1)
                 min_val2, max_val2, min_loc2, max_loc2 = cv2.minMaxLoc(res2)
                 min_val3, max_val3, min_loc3, max_loc3 = cv2.minMaxLoc(res3)
+                min_val4, max_val4, min_loc4, max_loc4 = cv2.minMaxLoc(res4)
+                #utils.showImageAndStop("cropped",outs[idx])
                 print("max match 1: {}".format(max_val1))
                 print("max match 2: {}".format(max_val2))
                 print("max match 3: {}".format(max_val3))
+                print("max match 4: {}".format(max_val4))
 
                 isBig = False
                 if outs[idx].shape[0] > 300 and outs[idx].shape[1] > 300:
                     isBig = True
 
-                if entropy >= 2 and ((max_val1 <= 0.96 and max_val2 <= 0.96 and max_val3 <= 0.96) or isBig):
+                if entropy >= 2 and ((max_val1 <= 0.96 and max_val2 <= 0.96 and max_val3 <= 0.96 and max_val4 <= 0.96) or isBig):
 
                     # RECTIFICATION
                     text, tmp = rectify.detectKeyPoints(outs[idx])
