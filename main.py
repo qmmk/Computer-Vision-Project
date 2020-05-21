@@ -32,8 +32,25 @@ video_statua_negra = "./videos/IMG_7854.MOV"
 video_statue_col = "./videos/IMG_9630.MOV"
 video_statue_white = "./videos/IMG_4080.MOV"
 video_statue_white_t = "./videos/IMG_4080_Trim.mp4"
+video_k = "./videos/Nuovi/GOPR5827.MP4"
+video_o = "./videos/Nuovi/GOPR5825.MP4"
+video_q = "./videos/Nuovi/GOPR2049.MP4"
+video_pi = "./videos/Nuovi/IMG_9621.MOV"
+video_a = "./videos/Nuovi/IMG_9628.MOV"
+video_b = "./videos/Nuovi/IMG_4076.MOV"
+video_d = "./videos/Nuovi/IMG_4074.MOV"
+uomo_cappello = "./videos/Nuovi/IMG_2653.MOV"
+vid = "./videos/Nuovi/GOPR5828.MP4"
+video_zoom = "./videos/Nuovi/VID_20180529_112627.mp4"
+video_largo = "./videos/Nuovi/20180206_113800.mp4"
+video_cornice = "./videos/Nuovi/20180206_111931.mp4"
+video_no_cornice = "./videos/Nuovi/IMG_7852.MOV"
+video_tipo = "./videos/Nuovi/IMG_9622.MOV"
+video_ll = "./videos/Nuovi/VID_20180529_112706.mp4"
+video_corridoio = "./videos/Nuovi/VIRB0394.MP4"
 
-cap = cv2.VideoCapture(video_statue_white_t)
+cap = cv2.VideoCapture(video_k)
+
 
 if not cap.isOpened():
     print("Unable to read camera feed")
@@ -47,6 +64,7 @@ room = "Stanza generica"
 template1 = cv2.imread('./match/match1.jpg', cv2.IMREAD_COLOR)
 template2 = cv2.imread('./match/match2.jpg', cv2.IMREAD_COLOR)
 template3 = cv2.imread('./match/match3.jpg', cv2.IMREAD_COLOR)
+template4 = cv2.imread('./match/match4.png', cv2.IMREAD_COLOR)
 
 
 while (True):
@@ -68,7 +86,7 @@ while (True):
 
         blank = np.zeros_like(frame)
         for idk in listindexfree:
-            cv2.drawContours(blank, hulls, idk, (255, 255, 255), -1)
+            cv2.drawContours(blank, hulls, idk, (255, 255, 255), 1)
 
         utils.showImageAndStop('ROI', blank)
 
@@ -96,19 +114,23 @@ while (True):
                 res1 = cv2.matchTemplate(outs[idx], template1, cv2.TM_CCORR_NORMED)
                 res2 = cv2.matchTemplate(outs[idx], template2, cv2.TM_CCORR_NORMED)
                 res3 = cv2.matchTemplate(outs[idx], template3, cv2.TM_CCORR_NORMED)
+                res4 = cv2.matchTemplate(outs[idx], template4, cv2.TM_CCORR_NORMED)
 
                 min_val1, max_val1, min_loc1, max_loc1 = cv2.minMaxLoc(res1)
                 min_val2, max_val2, min_loc2, max_loc2 = cv2.minMaxLoc(res2)
                 min_val3, max_val3, min_loc3, max_loc3 = cv2.minMaxLoc(res3)
+                min_val4, max_val4, min_loc4, max_loc4 = cv2.minMaxLoc(res4)
+                #utils.showImageAndStop("cropped",outs[idx])
                 print("max match 1: {}".format(max_val1))
                 print("max match 2: {}".format(max_val2))
                 print("max match 3: {}".format(max_val3))
+                print("max match 4: {}".format(max_val4))
 
                 isBig = False
                 if outs[idx].shape[0] > 300 and outs[idx].shape[1] > 300:
                     isBig = True
 
-                if entropy >= 2 and ((max_val1 <= 0.96 and max_val2 <= 0.96 and max_val3 <= 0.96) or isBig):
+                if entropy >= 1.3 and ((max_val1 <= 0.96 and max_val2 <= 0.96 and max_val3 <= 0.96) or isBig):
 
                     # RECTIFICATION
                     text, tmp = rectify.detectKeyPoints(outs[idx])

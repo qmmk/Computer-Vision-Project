@@ -121,7 +121,6 @@ def rectify_image_2(rows, cols, img, p):
 
 def rectify_image_with_correspondences(im, p1, p2, w, h):
     m, status = cv2.findHomography(p1, p2)
-    print(m)
     warped = cv2.warpPerspective(im, m, (w, h))
 
     return warped
@@ -145,6 +144,7 @@ def getLine(edges, frame):
 
         cv2.line(frame, (x1, y1), (x2, y2), (255, 255, 255), 2)
 
+
 def SIFT(img1,img2,titolo_immagine):
 
     sift = cv2.xfeatures2d.SIFT_create()
@@ -153,56 +153,115 @@ def SIFT(img1,img2,titolo_immagine):
     kp1, des1 = sift.detectAndCompute(img1, None)
     kp2, des2 = sift.detectAndCompute(img2, None)
 
-    # BFMatcher with default params
-    bf = cv2.BFMatcher()
-    matches = bf.knnMatch(des1, des2, k=2)
+    FLANN_INDEX_KDTREE = 0
+    index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
+    search_params = dict(checks=50)
 
-    good = []
-    goodn = []
+    flann = cv2.FlannBasedMatcher(index_params, search_params)
+
+    matches = flann.knnMatch(des1, des2, k=2)
+
     retkp1 = []
     retkp2 = []
     ngood = 10
+    good = []
 
-    # ratio test as per Lowe's paper
-    for i, (m, n) in enumerate(matches):
-
-        if m.distance < 0.6 * n.distance:
+    for m, n in matches:
+        if m.distance < 0.55 * n.distance:
             good.append(m)
-            goodn.append(n)
 
 
-    if len(good) >= ngood:
-        good = sorted(good, key=lambda x: x.distance)
-        good = good[:ngood]
-        score = sum(x.distance for x in good[:ngood])
+    if len(good) > ngood:
 
-        goodn = sorted(goodn, key=lambda x: x.distance)
-        goodn = goodn[:ngood]
-        score_n = sum(x.distance for x in goodn[:ngood])
+        src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
+        dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
 
-        print("score m: " + str(score))
-        print("score n: " + str(score_n))
+        M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+        matchesMask = mask.ravel().tolist()
 
-        for m in good:
-            # Get the matching keypoints for each of the images
-            img1_idx = m.queryIdx
-            img2_idx = m.trainIdx
+        score = 0
+        for i in good:
+            score += i.distance
+            img1_idx = i.queryIdx
+            img2_idx = i.trainIdx
             (x1, y1) = kp1[img1_idx].pt
             (x2, y2) = kp2[img2_idx].pt
             retkp1.append((x1, y1))
             retkp2.append((x2, y2))
 
+        #h, w = img1.shape
+        #pts = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]]).reshape(-1, 1, 2)
+        #dst = cv2.perspectiveTransform(pts, M)
 
-        if score < 1200:  # 230
-            img3 = cv2.drawMatches(img1, kp1, img2, kp2, good[:ngood], None, flags=2)
-            utils.showImageAndStop(titolo_immagine,img3)
-            return True, good, retkp1, retkp2, score
-        else:
-            return False, 0, 0, 0, 100000
+        #img2 = cv2.polylines(img2, [np.int32(dst)], True, 255, 3, cv2.LINE_AA)
+
+        draw_params = dict(matchColor=(0, 255, 0),  # draw matches in green color
+                           singlePointColor=None,
+                           matchesMask=matchesMask,  # draw only inliers
+                           flags=2)
+
+        img3 = cv2.drawMatches(img1, kp1, img2, kp2, good, None, **draw_params)
+
+        utils.showImageAndStop('SIFT', img3)
+
+        return True, good, retkp1, retkp2, score
     else:
+        print("Not enough matches are found - %d/%d" % (len(good), ngood))
         return False, 0, 0, 0, 100000
 
 
+def chekcWithSIFT(img1,img2):
+
+    sift = cv2.xfeatures2d.SIFT_create()
+
+    # find the keypoints and descriptors with SIFT
+    kp1, des1 = sift.detectAndCompute(img1, None)
+    kp2, des2 = sift.detectAndCompute(img2, None)
+
+    FLANN_INDEX_KDTREE = 0
+    index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
+    search_params = dict(checks=50)
+
+    flann = cv2.FlannBasedMatcher(index_params, search_params)
+
+    matches = flann.knnMatch(des1, des2, k=2)
+
+
+    ngood = 10
+    good = []
+
+    for m, n in matches:
+        if m.distance < 0.65 * n.distance:
+            good.append(m)
+
+
+    if len(good) > ngood:
+
+        src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
+        dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
+
+        M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+        matchesMask = mask.ravel().tolist()
+
+        score = 0
+        for i in good:
+            score += i.distance
+
+        print(score)
+
+
+        draw_params = dict(matchColor=(0, 255, 0),  # draw matches in green color
+                           singlePointColor=None,
+                           matchesMask=matchesMask,  # draw only inliers
+                           flags=2)
+
+        #img3 = cv2.drawMatches(img1, kp1, img2, kp2, good, None, **draw_params)
+
+        #utils.showImageAndStop('SIFT', img3)
+
+        return True , src_pts, dst_pts
+    else:
+        return False, 0, 0
 
 def ORB(im1, im2, titolo_immagine):
     # Initiate SIFT detector
@@ -224,6 +283,7 @@ def ORB(im1, im2, titolo_immagine):
     matches = bf.match(des1, des2)
     # Sort them in the order of their distance.
     matches = sorted(matches, key=lambda x: x.distance)
+
     good = []
     retkp1 = []
     retkp2 = []
@@ -245,7 +305,7 @@ def ORB(im1, im2, titolo_immagine):
     if len(good) >= ngood:
         good = sorted(good, key=lambda x: x.distance)
         score = sum(x.distance for x in good[:ngood])
-        # print("{} -> score: {}".format(titolo_immagine, score))
+        print("{} -> score: {}".format(titolo_immagine, score))
 
         if score < 350:  # 230
             #img3 = cv2.drawMatches(im1, kp1, im2, kp2, good[:ngood], None, flags=2)
@@ -269,27 +329,25 @@ def detectKeyPoints(img_rgb):
         template = cv2.imread(immage_template, 0) #1 a colori
         img_gray = cv2.cvtColor(img_rgb, cv2.COLOR_BGR2GRAY) # togli questa per settare a colori
 
-        is_detected, matches, ret_kp1, ret_kp2, score = ORB(img_rgb, template, titolo_quadro)
-        #is_detected, matches, ret_kp1, ret_kp2, score = SIFT(img_gray, template, titolo_quadro)
-        print(score)
+        is_detected, matches, ret_kp1, ret_kp2, score = ORB(img_gray, template, titolo_quadro)
 
+        if is_detected:
+            detection_SIFT, _ , __ = chekcWithSIFT(img_gray,template)
+            if score < min_score and detection_SIFT:
+                min_score = score
+                text = "{} - score: {}".format(titolo_quadro, score)
+                room = "Stanza n.{}".format(stanza)
 
-        if score < min_score: #<
-            min_score = score
-            text = "{} - score: {}".format(titolo_quadro, score)
-            room = "Stanza n.{}".format(stanza)
-            print(text)
-
-            min_idx = it
-            array1 = np.array((ret_kp1), dtype=np.float32)
-            array2 = np.array((ret_kp2), dtype=np.float32)
+                min_idx = it
+                array1 = np.array((ret_kp1), dtype=np.float32)
+                array2 = np.array((ret_kp2), dtype=np.float32)
 
     if min_score < 100000: #100000
         id = min_idx
         print("idx" + str(id))
 
         warped = rectify_image_with_correspondences(img_rgb, array2[:8], array1[:8], 1000, 1000)
-        utils.showImageAndStop(text, warped)
+        #utils.showImageAndStop(text, warped)
 
     return text, room
 

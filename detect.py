@@ -37,9 +37,42 @@ g_kernel = cv2.getGaborKernel((25, 25), 6.5, np.pi / 4, 10.0, 0.5, 0, ktype=cv2.
 
 color = (255, 255, 255)
 
+def optionalFilter(img):
+
+    rgb_planes = cv2.split(img)
+
+    result_planes = []
+    result_norm_planes = []
+    for plane in rgb_planes:
+        dilated_img = cv2.dilate(plane, np.ones((7, 7), np.uint8))
+        bg_img = cv2.medianBlur(dilated_img, 21)
+        diff_img = 255 - cv2.absdiff(plane, bg_img)
+        norm_img = cv2.normalize(diff_img, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8UC1)
+        result_planes.append(diff_img)
+        result_norm_planes.append(norm_img)
+
+    result_norm = cv2.merge(result_norm_planes)
+    # result = cv2.merge(result_planes)
+    result_norm = cv2.bitwise_not(result_norm)
+
+    result_norm = cv2.Canny(result_norm, 50, 140)
+    result_norm = cv2.dilate(result_norm, kernel2, iterations=1)
+
+    utils.showImageAndStop('nosh',result_norm)
+
+
+    return result_norm
+
+
+
+
+
+
 
 def hybrid_edge_detection_V2(frame):
     gray_no_blur = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+
     gray = cv2.GaussianBlur(gray_no_blur, (5, 5), cv2.BORDER_DEFAULT)
     gray = cv2.GaussianBlur(gray, (13, 13), cv2.BORDER_DEFAULT)
 
@@ -54,6 +87,8 @@ def hybrid_edge_detection_V2(frame):
     dilate_canny = cv2.dilate(canny, kernel2, iterations=1)
 
     img_bwa = cv2.bitwise_and(adapt_filter, dilate_canny)
+
+
     img_bwa = cv2.bitwise_or(img_bwa, dilate_gabor)
 
     # img_bwa = cv2.erode(img_bwa, kernel2, iterations=2)
@@ -62,7 +97,11 @@ def hybrid_edge_detection_V2(frame):
 
     img_bwa = cv2.bitwise_or(adapt_filter, img_bwa)
 
+
     # showImageAndStop('f',img_bwa)
+    img_bwa = np.where(img_bwa == 0, img_bwa, 255)
+
+
 
     return img_bwa
 
@@ -166,14 +205,17 @@ def otsu(frame):
 
 
 def get_contours(src):
-    _,conts, heirarchy = cv2.findContours(src, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
+    _ ,conts, heirarchy = cv2.findContours(src, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
     src_mask = np.zeros_like(src)
     hull_list = []
     rects = []
     for i in conts:
         rect = cv2.boundingRect(i)
         x, y, w, h = rect
-        if w > 100 and h > 100:
+        if w > 80 and h > 80:
+
             hull = cv2.convexHull(i)
             hull_list.append(hull)
             # creo contorni da dare alla funzione getline e un frame nero
