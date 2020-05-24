@@ -6,6 +6,8 @@ import utils
 from PIL import Image
 
 
+
+
 lista_titoli, lista_immagini, lista_stanze = utils.carica_lista_cvs()
 
 

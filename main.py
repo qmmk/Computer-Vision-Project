@@ -48,8 +48,10 @@ video_no_cornice = "./videos/Nuovi/IMG_7852.MOV"
 video_tipo = "./videos/Nuovi/IMG_9622.MOV"
 video_ll = "./videos/Nuovi/VID_20180529_112706.mp4"
 video_corridoio = "./videos/Nuovi/VIRB0394.MP4"
+video_distorto = "./videos/GOPR5830.MP4"
+video_rombi = "./videos/GOPR5825.MP4"
 
-cap = cv2.VideoCapture(video_k)
+cap = cv2.VideoCapture(video_rombi)
 
 
 if not cap.isOpened():
@@ -71,13 +73,17 @@ while (True):
     ret, frame = cap.read()
 
     if ret:
+        frame = utils.correct_distortion(frame, frame_height, frame_width)
+
         dict = []
 
         # DETECTION
         src = detect.hybrid_edge_detection_V2(frame)
 
+
         # CONTOURS
         rects, hulls, src_mask = detect.get_contours(src)
+
 
         # estrae gli indici delle roi senza intersezioni e rimuove gli indici di roi contenute in altre roi
         # utile per aumentare le performance e iterare solo su contorni certi
@@ -88,7 +94,7 @@ while (True):
         for idk in listindexfree:
             cv2.drawContours(blank, hulls, idk, (255, 255, 255), 1)
 
-        utils.showImageAndStop('ROI', blank)
+        #utils.showImageAndStop('ROI', blank)
 
         # CROP
         outs, masks, green = detect.cropping_frame(frame, hulls, src_mask)
@@ -133,6 +139,7 @@ while (True):
                 if entropy >= 1.3 and ((max_val1 <= 0.96 and max_val2 <= 0.96 and max_val3 <= 0.96) or isBig):
 
                     # RECTIFICATION
+
                     text, tmp = rectify.detectKeyPoints(outs[idx])
                     if tmp != "":
                         room = tmp
@@ -153,8 +160,10 @@ while (True):
                                 if tmp != "":
                                     room = tmp
                     dict.append({'texts': text, 'rects': rects[idx]})
+                    
 
         # PERSON
+
         detected, rects_yolo, label_yolo = yolo.detect_person(frame, frame_height, frame_width)
         frame, rects_dec_eyes = yolo.detect_eyes(frame, detected)
 
@@ -182,7 +191,7 @@ while (True):
         for di in dict:
             utils.drawLabel(di['rects'][2], di['rects'][3], di['rects'][0], di['rects'][1], di['texts'], frame)
 
-        utils.showImageAndStop("detect", frame)
+        #utils.showImageAndStop("detect", frame)
         # print(room)
 
         k = cv2.waitKey(5) & 0xFF
