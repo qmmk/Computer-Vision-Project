@@ -76,8 +76,40 @@ def optionalFilter(img):
 
 
 
+def hybrid_edge_detection_V2_(frame):
+    gray_no_blur = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
 
+    gray = cv2.GaussianBlur(gray_no_blur, (5, 5), cv2.BORDER_DEFAULT)
+    gray = cv2.GaussianBlur(gray, (13, 13), cv2.BORDER_DEFAULT)
+
+    gabor = cv2.filter2D(gray, cv2.CV_8UC3, g_kernel)
+    gabor = cv2.bitwise_not(gabor)
+
+    dilate_gabor = cv2.dilate(gabor, kernel2, iterations=2)
+
+    adapt_filter = adaptive_Filter(frame)
+
+    canny = cv2.Canny(gray_no_blur, 50, 140)
+    dilate_canny = cv2.dilate(canny, kernel2, iterations=1)
+
+    img_bwa = cv2.bitwise_and(adapt_filter, dilate_canny)
+
+
+    img_bwa = cv2.bitwise_or(img_bwa, dilate_gabor)
+
+    img_bwa = cv2.erode(img_bwa, kernel, iterations=3) #
+    img_bwa = cv2.dilate(img_bwa, kernel, iterations=5) #3
+
+    img_bwa = cv2.bitwise_or(adapt_filter, img_bwa)
+
+
+
+    img_bwa = np.where(img_bwa == 0, img_bwa, 255)
+    # utils.showImageAndStop('f',img_bwa)
+
+
+    return img_bwa
 
 def hybrid_edge_detection_V2(frame):
     gray_no_blur = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -102,15 +134,15 @@ def hybrid_edge_detection_V2(frame):
     img_bwa = cv2.bitwise_or(img_bwa, dilate_gabor)
 
     # img_bwa = cv2.erode(img_bwa, kernel2, iterations=2)
-    # img_bwa = cv2.erode(img_bwa, kernel, iterations=7)
+    img_bwa = cv2.erode(img_bwa, kernel, iterations=7) #
     img_bwa = cv2.dilate(img_bwa, kernel, iterations=3)
 
     img_bwa = cv2.bitwise_or(adapt_filter, img_bwa)
 
 
-    # showImageAndStop('f',img_bwa)
-    img_bwa = np.where(img_bwa == 0, img_bwa, 255)
 
+    img_bwa = np.where(img_bwa == 0, img_bwa, 255)
+    utils.showImageAndStop('f',img_bwa)
 
 
     return img_bwa
@@ -229,7 +261,7 @@ def get_contours(src):
             hull = cv2.convexHull(i)
             hull_list.append(hull)
             # creo contorni da dare alla funzione getline e un frame nero
-            cv2.drawContours(src_mask, [hull], 0, (255, 255, 255), -1)
+            cv2.drawContours(src_mask, [hull], 0, (255, 255, 255), 1)
             rects.append(rect)
     return rects, hull_list, src_mask
 
