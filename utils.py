@@ -142,6 +142,7 @@ lens_maker = 'GOPRO'
 lens_model = 'fixed lens'
 
 db = lensfunpy.Database()
+print(db.find_cameras(cam_maker, cam_model)[0])
 cam = db.find_cameras(cam_maker, cam_model)[0]
 lens = db.find_lenses(cam, lens_maker, lens_model)[0]
 

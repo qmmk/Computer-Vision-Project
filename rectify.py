@@ -123,9 +123,11 @@ def rectify_image_2(rows, cols, img, p):
 
 def rectify_image_with_correspondences(im, p1, p2, w, h):
     m, status = cv2.findHomography(p1, p2)
+    if m is None:
+        return 0, False
     warped = cv2.warpPerspective(im, m, (w, h))
 
-    return warped
+    return warped, True
 
 
 def getLine(edges, frame):
@@ -228,7 +230,6 @@ def chekcWithSIFT(img1,img2):
 
     matches = flann.knnMatch(des1, des2, k=2)
 
-
     ngood = 10
     good = []
 
@@ -236,8 +237,9 @@ def chekcWithSIFT(img1,img2):
         if m.distance < 0.65 * n.distance:
             good.append(m)
 
-
     if len(good) > ngood:
+
+        good = sorted(good, key=lambda x: x.distance)
 
         src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
         dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
@@ -257,13 +259,13 @@ def chekcWithSIFT(img1,img2):
                            matchesMask=matchesMask,  # draw only inliers
                            flags=2)
 
-        #img3 = cv2.drawMatches(img1, kp1, img2, kp2, good, None, **draw_params)
+        img3 = cv2.drawMatches(img1, kp1, img2, kp2, good, None, **draw_params)
 
-        #utils.showImageAndStop('SIFT', img3)
+        utils.showImageAndStop('SIFT', img3)
 
-        return True , src_pts, dst_pts
+        return True , src_pts, dst_pts, good
     else:
-        return False, 0, 0
+        return False, 0, 0, 0
 
 def ORB(im1, im2, titolo_immagine):
     # Initiate SIFT detector
@@ -289,11 +291,11 @@ def ORB(im1, im2, titolo_immagine):
     good = []
     retkp1 = []
     retkp2 = []
-    ngood = 10
-
+    ngood = 9
 
     for m in matches:
         if m.distance < 40:  # 50
+            print("titolo: {}     distanza: {}".format(titolo_immagine, m.distance))
             good.append(m)
             # Get the matching keypoints for each of the images
             img1_idx = m.queryIdx
@@ -303,11 +305,10 @@ def ORB(im1, im2, titolo_immagine):
             retkp1.append((x1, y1))
             retkp2.append((x2, y2))
 
-
     if len(good) >= ngood:
-        good = sorted(good, key=lambda x: x.distance)
+
         score = sum(x.distance for x in good[:ngood])
-        print("{} -> score: {}".format(titolo_immagine, score))
+        #print("{} -> score: {}".format(titolo_immagine, score))
 
         if score < 350:  # 230
             #img3 = cv2.drawMatches(im1, kp1, im2, kp2, good[:ngood], None, flags=2)
@@ -323,6 +324,9 @@ def detectKeyPoints(img_rgb):
     min_score = 100000  #100000
     text = "quadro"
     room = ""
+    sift_best_good = 0
+    orb_best_good = 0
+    utils.showImageAndStop("OOOOOOOOOOO",img_rgb)
     for it in range(len(lista_immagini) - 1):
         # Read the main image
         titolo_quadro = lista_titoli[it + 1]
@@ -334,27 +338,64 @@ def detectKeyPoints(img_rgb):
         is_detected, matches, ret_kp1, ret_kp2, score = ORB(img_gray, template, titolo_quadro)
 
         if is_detected:
-            detection_SIFT, _ , __ = chekcWithSIFT(img_gray,template)
+            #detection_SIFT, _ , __ = chekcWithSIFT(img_gray,template)
+            detection_SIFT, src_pts, dst_pts, good = chekcWithSIFT(img_gray, template)
             if score < min_score and detection_SIFT:
                 min_score = score
                 text = "{} - score: {}".format(titolo_quadro, score)
                 room = "Stanza n.{}".format(stanza)
 
                 min_idx = it
+                best_dst_pts = dst_pts
+                best_src_pts = src_pts
+                sift_best_good = good
                 array1 = np.array((ret_kp1), dtype=np.float32)
                 array2 = np.array((ret_kp2), dtype=np.float32)
+                orb_best_good = matches
 
     if min_score < 100000: #100000
         id = min_idx
         print("idx" + str(id))
+        npoints_sift=0
+        npoints_orb=0
+        if len(sift_best_good)>=4:
+            for i in range(len(sift_best_good)):
+                print("{})   {}".format(i, sift_best_good[i].distance))
+                if sift_best_good[i].distance < 150:
+                    npoints_sift+=1
+            if npoints_sift < 4:
+                npoints_sift = 4
+            if npoints_sift > 25:
+                npoints_sift = 25
+            warped, flag = rectify_image_with_correspondences(img_rgb, best_src_pts[:npoints_sift],best_dst_pts[:npoints_sift],  1000, 1000)
 
-        warped = rectify_image_with_correspondences(img_rgb, array2[:8], array1[:8], 1000, 1000)
-        #utils.showImageAndStop(text, warped)
+        if len(orb_best_good) >= 4:
+            for i in range(len(orb_best_good)):
+                if orb_best_good[i].distance < 30:
+                    npoints_orb += 1
+            if npoints_orb < 4:
+                npoints_orb = 4
+            if npoints_orb > 30:
+                npoints_orb = 30
+            warped2, flag2 = rectify_image_with_correspondences(img_rgb, array2[:npoints_orb], array1[:npoints_orb], 1000, 1000)
+
+        utils.showImageAndStop("warped_orb", warped2)
+
+        if flag:
+            utils.showImageAndStop("warped_sift", warped)
+        else:
+            text = "quadro"
+            #utils.showImageAndStop("warped_orb", warped2)
 
     return text, room
 
 
 def hougesLinesAndCorner(image):
+    image = cv2.copyMakeBorder(image, 20, 20, 20, 20, 0)
+    print(image.shape)
+    if (image.shape[0]>1000 or image.shape[1]>1000):
+        image = cv2.resize(image, (1000, 1000))
+    utils.showImageAndStop("warped_corners", image)
     edges = cv2.Canny(image, 50, 150, apertureSize=3)
     lines = cv2.HoughLines(edges, 1, np.pi / 180.0, 100, np.array([]), 0, 0)
     out_line = np.zeros_like(image)
@@ -381,6 +422,7 @@ def hougesLinesAndCorner(image):
         for i in corners:
             x, y = i.ravel()
             cv2.circle(out_line, (x, y), 3, 255, -1)
+        utils.showImageAndStop("warped_corners", out_line)
 
     else:
         corners = []

@@ -2,6 +2,16 @@ import cv2
 import numpy as np
 import utils
 
+import torch
+import torchvision.models as models
+from torchvision import transforms
+from torch.autograd import Variable
+import csv
+from PIL import Image
+import torch.nn as nn
+import torch
+
+lista_titoli, lista_immagini, lista_stanze = utils.carica_lista_cvs()
 
 class ColourBounds:
     def __init__(self, rgb):
@@ -282,3 +292,43 @@ def image_crop_bin(frame, hull_list, i):
     (bottomy, bottomx) = (np.max(y), np.max(x))
     out = out[topy:bottomy + 1, topx:bottomx + 1]
     return out
+
+def get_feature_vector(img,scaler,to_tensor,normalize,layer,resnet):
+
+    #  Create a PyTorch Variable with the transformed image
+    t_img = Variable(normalize(to_tensor(scaler(img))).unsqueeze(0))
+    #  Create a vector of zeros that will hold our feature vector
+    #    The 'avgpool' layer has an output size of 512
+    #my_embedding = torch.zeros(512)
+    my_embedding = torch.zeros([1, 2048, 1, 2048])
+    #  Define a function that will copy the output of a layer
+    def copy_data(m, i, o):
+        my_embedding.copy_(o.data)
+    #  Attach that function to our selected layer
+    h = layer.register_forward_hook(copy_data)
+    #  Run the model on our transformed image
+    resnet(t_img)
+    #  Detach our copy function from the layer
+    h.remove()
+    # 8. Return the feature vector
+    return my_embedding
+
+def compare_vectors(v,feature_vectors):
+    max = 0
+    itmax = -1
+    v = v.squeeze(2)
+    v = v.squeeze(0)
+    vec = torch.zeros([2048])
+    for i in range(2048):
+        vec[i] = v[i][0]
+    for it in range(len(feature_vectors)):
+        cos = nn.CosineSimilarity(dim=1, eps=1e-5)
+        cos_sim = cos(vec.unsqueeze(0), feature_vectors[it].unsqueeze(0))
+        if cos_sim > max:
+            max = cos_sim
+            itmax = it
+    if max > 0.80:
+        print("id: {} titolo: {} --> cos_score: {}".format(itmax, lista_titoli[itmax+1], max))
+    else:
+        print("SCORE TOO LOW --> id: {} titolo: {} --> cos_score: {}".format(itmax, lista_titoli[itmax + 1], max))
+    return itmax, max

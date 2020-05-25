@@ -50,8 +50,12 @@ video_ll = "./videos/Nuovi/VID_20180529_112706.mp4"
 video_corridoio = "./videos/Nuovi/VIRB0394.MP4"
 video_distorto = "./videos/GOPR5830.MP4"
 video_rombi = "./videos/GOPR5825.MP4"
+video_prete = "./videos/Nuovi/GOPR5826.MP4"
+video_gesu = "./videos/Nuovi/20180206_113600.mp4"
+video_asd = "./videos/VIRB0416.MP4"
+video_uomo_trimmato = "./videos/Nuovi/uomo_trimmato.mp4"
 
-cap = cv2.VideoCapture(video_rombi)
+cap = cv2.VideoCapture(video_uomo_trimmato)
 
 
 if not cap.isOpened():
@@ -73,8 +77,7 @@ while (True):
     ret, frame = cap.read()
 
     if ret:
-        frame = utils.correct_distortion(frame, frame_height, frame_width)
-
+        #frame = utils.correct_distortion(frame, frame_height, frame_width)
         dict = []
 
         # DETECTION
@@ -93,7 +96,10 @@ while (True):
         blank = np.zeros_like(frame)
         for idk in listindexfree:
             cv2.drawContours(blank, hulls, idk, (255, 255, 255), 1)
-
+        '''
+        for idk in range(len(hulls)):#listindexfree:
+            cv2.drawContours(blank, hulls, idk, (255, 255, 255), 1)
+        '''
         #utils.showImageAndStop('ROI', blank)
 
         # CROP
@@ -126,12 +132,13 @@ while (True):
                 min_val2, max_val2, min_loc2, max_loc2 = cv2.minMaxLoc(res2)
                 min_val3, max_val3, min_loc3, max_loc3 = cv2.minMaxLoc(res3)
                 min_val4, max_val4, min_loc4, max_loc4 = cv2.minMaxLoc(res4)
-                #utils.showImageAndStop("cropped",outs[idx])
+
+                '''
                 print("max match 1: {}".format(max_val1))
                 print("max match 2: {}".format(max_val2))
                 print("max match 3: {}".format(max_val3))
                 print("max match 4: {}".format(max_val4))
-
+                '''
                 isBig = False
                 if outs[idx].shape[0] > 300 and outs[idx].shape[1] > 300:
                     isBig = True
@@ -147,20 +154,22 @@ while (True):
                     out_bin_pad = cv2.copyMakeBorder(imm, 50, 50, 50, 50, 0)
                     out_imm_pad = cv2.copyMakeBorder(outs[idx], 50, 50, 50, 50, 0)
                     corners = rectify.hougesLinesAndCorner(out_bin_pad)
-                    # utils.showImageAndStop("cropped",out_imm_pad)
 
-                    if len(corners) == 4 and text == 'quadro':
+                    print("corner: {}".format(len(corners)))
+                    print("text: {}".format(text))
+                    if len(corners) == 4: #and text == 'quadro':
                         p = rectify.order_corners(corners)
                         # se order_corners non dà errore
                         if p != 0:
                             warped = rectify.rectify_image_2(out_imm_pad.shape[0], out_imm_pad.shape[1], out_imm_pad, p)
                             #se rectify_image_2 non dà errore
                             if not np.isscalar(warped):
+                                utils.showImageAndStop("warped_corners", warped)
                                 text, tmp = rectify.detectKeyPoints(warped)
                                 if tmp != "":
                                     room = tmp
                     dict.append({'texts': text, 'rects': rects[idx]})
-                    
+
 
         # PERSON
 
@@ -191,7 +200,7 @@ while (True):
         for di in dict:
             utils.drawLabel(di['rects'][2], di['rects'][3], di['rects'][0], di['rects'][1], di['texts'], frame)
 
-        #utils.showImageAndStop("detect", frame)
+        utils.showImageAndStop("detect", frame)
         # print(room)
 
         k = cv2.waitKey(5) & 0xFF
