@@ -7,7 +7,6 @@ from PIL import Image
 
 
 
-
 lista_titoli, lista_immagini, lista_stanze = utils.carica_lista_cvs()
 
 
@@ -46,8 +45,9 @@ def order_corners(corners):
 
     return p
 
-
 def rectify_image_2(rows, cols, img, p):
+    print(p)
+
     # image center
     u0 = (cols) / 2.0
     v0 = (rows) / 2.0
@@ -120,15 +120,13 @@ def rectify_image_2(rows, cols, img, p):
 
     return dst
 
-
 def rectify_image_with_correspondences(im, p1, p2, w, h):
-    m, status = cv2.findHomography(p1, p2)
+    m, status = cv2.findHomography(p1, p2, cv2.RANSAC, 5.0)
     if m is None:
         return 0, False
     warped = cv2.warpPerspective(im, m, (w, h))
 
     return warped, True
-
 
 def getLine(edges, frame):
     # get contours
@@ -148,10 +146,11 @@ def getLine(edges, frame):
 
         cv2.line(frame, (x1, y1), (x2, y2), (255, 255, 255), 2)
 
-
-def SIFT(img1,img2,titolo_immagine):
+def SIFT(img2,img1):
 
     sift = cv2.xfeatures2d.SIFT_create()
+
+    MIN_MATCH_COUNT = 10
 
     # find the keypoints and descriptors with SIFT
     kp1, des1 = sift.detectAndCompute(img1, None)
@@ -165,56 +164,39 @@ def SIFT(img1,img2,titolo_immagine):
 
     matches = flann.knnMatch(des1, des2, k=2)
 
-    retkp1 = []
-    retkp2 = []
-    ngood = 10
+    # store all the good matches as per Lowe's ratio test.
     good = []
-
     for m, n in matches:
-        if m.distance < 0.55 * n.distance:
+        if m.distance < 0.7 * n.distance:
             good.append(m)
 
-
-    if len(good) > ngood:
-
+    if len(good) > MIN_MATCH_COUNT:
         src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
         dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
 
         M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
         matchesMask = mask.ravel().tolist()
 
-        score = 0
-        for i in good:
-            score += i.distance
-            img1_idx = i.queryIdx
-            img2_idx = i.trainIdx
-            (x1, y1) = kp1[img1_idx].pt
-            (x2, y2) = kp2[img2_idx].pt
-            retkp1.append((x1, y1))
-            retkp2.append((x2, y2))
+        h, w, _ = img1.shape
+        pts = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]]).reshape(-1, 1, 2)
+        dst = cv2.perspectiveTransform(pts, M)
 
-        #h, w = img1.shape
-        #pts = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]]).reshape(-1, 1, 2)
-        #dst = cv2.perspectiveTransform(pts, M)
+        img2 = cv2.polylines(img2, [np.int32(dst)], True, 255, 3, cv2.LINE_AA)
 
-        #img2 = cv2.polylines(img2, [np.int32(dst)], True, 255, 3, cv2.LINE_AA)
-
-        draw_params = dict(matchColor=(0, 255, 0),  # draw matches in green color
-                           singlePointColor=None,
-                           matchesMask=matchesMask,  # draw only inliers
-                           flags=2)
-
-        img3 = cv2.drawMatches(img1, kp1, img2, kp2, good, None, **draw_params)
-
-        utils.showImageAndStop('SIFT', img3)
-
-        return True, good, retkp1, retkp2, score
     else:
-        print("Not enough matches are found - %d/%d" % (len(good), ngood))
-        return False, 0, 0, 0, 100000
+        print("Not enough matches are found - %d/%d" % (len(good), MIN_MATCH_COUNT))
+        matchesMask = None
+
+    draw_params = dict(matchColor=(0, 255, 0),  # draw matches in green color
+                       singlePointColor=None,
+                       matchesMask=matchesMask,  # draw only inliers
+                       flags=2)
+
+    img3 = cv2.drawMatches(img1, kp1, img2, kp2, good, None, **draw_params)
 
 
-def chekcWithSIFT(img1,img2):
+
+def chekcWithSIFT(img1,img2,sx):
 
     sift = cv2.xfeatures2d.SIFT_create()
 
@@ -244,8 +226,15 @@ def chekcWithSIFT(img1,img2):
         src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
         dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
 
-        M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+        if not sx:
+            M, mask = cv2.findHomography(dst_pts, src_pts, cv2.RANSAC , 50.0)
+        else:
+            M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 50.0)
+
         matchesMask = mask.ravel().tolist()
+        warped = cv2.warpPerspective(img1, M, (img2.shape[1], img2.shape[0]))
+
+        utils.showImageAndStop("show_inside_sift",warped) # `e qui che fa il display della imm warpata con sift
 
         score = 0
         for i in good:
@@ -262,6 +251,8 @@ def chekcWithSIFT(img1,img2):
         img3 = cv2.drawMatches(img1, kp1, img2, kp2, good, None, **draw_params)
 
         utils.showImageAndStop('SIFT', img3)
+
+
 
         return True , src_pts, dst_pts, good
     else:
@@ -291,11 +282,10 @@ def ORB(im1, im2, titolo_immagine):
     good = []
     retkp1 = []
     retkp2 = []
-    ngood = 9
+    ngood = 10
 
     for m in matches:
         if m.distance < 40:  # 50
-            print("titolo: {}     distanza: {}".format(titolo_immagine, m.distance))
             good.append(m)
             # Get the matching keypoints for each of the images
             img1_idx = m.queryIdx
@@ -308,7 +298,7 @@ def ORB(im1, im2, titolo_immagine):
     if len(good) >= ngood:
 
         score = sum(x.distance for x in good[:ngood])
-        #print("{} -> score: {}".format(titolo_immagine, score))
+        print("{} -> score: {}".format(titolo_immagine, score))
 
         if score < 350:  # 230
             #img3 = cv2.drawMatches(im1, kp1, im2, kp2, good[:ngood], None, flags=2)
@@ -319,14 +309,14 @@ def ORB(im1, im2, titolo_immagine):
     else:
         return False, 0, 0, 0, 100000
 
-def detectKeyPoints(img_rgb):
+def detectKeyPoints(img_rgb,sx):
     min_idx = -1
     min_score = 100000  #100000
     text = "quadro"
     room = ""
     sift_best_good = 0
     orb_best_good = 0
-    utils.showImageAndStop("OOOOOOOOOOO",img_rgb)
+
     for it in range(len(lista_immagini) - 1):
         # Read the main image
         titolo_quadro = lista_titoli[it + 1]
@@ -336,10 +326,10 @@ def detectKeyPoints(img_rgb):
         img_gray = cv2.cvtColor(img_rgb, cv2.COLOR_BGR2GRAY) # togli questa per settare a colori
 
         is_detected, matches, ret_kp1, ret_kp2, score = ORB(img_gray, template, titolo_quadro)
+        #SIFT(img_gray, template, titolo_quadro)
 
         if is_detected:
-            #detection_SIFT, _ , __ = chekcWithSIFT(img_gray,template)
-            detection_SIFT, src_pts, dst_pts, good = chekcWithSIFT(img_gray, template)
+            detection_SIFT, src_pts, dst_pts, good = chekcWithSIFT(img_gray, template,sx)
             if score < min_score and detection_SIFT:
                 min_score = score
                 text = "{} - score: {}".format(titolo_quadro, score)
@@ -367,8 +357,9 @@ def detectKeyPoints(img_rgb):
                 npoints_sift = 4
             if npoints_sift > 25:
                 npoints_sift = 25
-            warped, flag = rectify_image_with_correspondences(img_rgb, best_src_pts[:npoints_sift],best_dst_pts[:npoints_sift],  1000, 1000)
+            warped, flag = rectify_image_with_correspondences(img_rgb, best_dst_pts[:npoints_sift], best_src_pts[:npoints_sift], 1000, 1000)
 
+        """
         if len(orb_best_good) >= 4:
             for i in range(len(orb_best_good)):
                 if orb_best_good[i].distance < 30:
@@ -380,22 +371,22 @@ def detectKeyPoints(img_rgb):
             warped2, flag2 = rectify_image_with_correspondences(img_rgb, array2[:npoints_orb], array1[:npoints_orb], 1000, 1000)
 
         utils.showImageAndStop("warped_orb", warped2)
+        """
 
         if flag:
             utils.showImageAndStop("warped_sift", warped)
         else:
             text = "quadro"
-            #utils.showImageAndStop("warped_orb", warped2)
 
     return text, room
 
-
 def hougesLinesAndCorner(image):
-    image = cv2.copyMakeBorder(image, 20, 20, 20, 20, 0)
+    """
     print(image.shape)
     if (image.shape[0]>1000 or image.shape[1]>1000):
         image = cv2.resize(image, (1000, 1000))
-    utils.showImageAndStop("warped_corners", image)
+    """
+
     edges = cv2.Canny(image, 50, 150, apertureSize=3)
     lines = cv2.HoughLines(edges, 1, np.pi / 180.0, 100, np.array([]), 0, 0)
     out_line = np.zeros_like(image)
@@ -422,10 +413,55 @@ def hougesLinesAndCorner(image):
         for i in corners:
             x, y = i.ravel()
             cv2.circle(out_line, (x, y), 3, 255, -1)
-        utils.showImageAndStop("warped_corners", out_line)
+
 
     else:
         corners = []
         return corners
 
     return corners
+
+def determineOrientation(im):
+
+    blank = np.zeros_like(im)
+
+    corners = cv2.goodFeaturesToTrack(im, 4, 0.4, 80)
+    lista_punti_x = []
+    lista_punti_y = []
+
+    if corners is not None:
+        corners = np.int0(corners)
+
+        for i in corners:
+            x, y = i.ravel()
+            lista_punti_x.append(x)
+            lista_punti_y.append(y)
+            cv2.circle(blank, (x, y), 3, 255, -1)
+
+    lista_sx = []
+    lista_dx = []
+
+    #prendi punti piu a sx
+    a = lista_punti_x.index(min(lista_punti_x))
+    lista_sx.append((lista_punti_x[a],lista_punti_y[a]))
+    a = lista_punti_x.index(min(lista_punti_x))
+    lista_sx.append((lista_punti_x[a],lista_punti_y[a]))
+
+    #prendi punti piu a dx
+    a = lista_punti_x.index(max(lista_punti_x))
+    lista_dx.append((lista_punti_x[a],lista_punti_y[a]))
+    a = lista_punti_x.index(max(lista_punti_x))
+    lista_dx.append((lista_punti_x[a],lista_punti_y[a]))
+
+    sx = abs(lista_sx[0][1]-lista_sx[1][1])
+    dx = abs(lista_dx[0][1]-lista_dx[1][1])
+
+    if sx < dx:
+        return False
+
+    return True
+
+
+
+
+
