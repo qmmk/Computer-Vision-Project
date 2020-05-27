@@ -236,9 +236,6 @@ def chekcWithSIFT(img1,img2,sx):
         if M is None:
             return False, 0, 0, 0, 0
 
-        warped = cv2.warpPerspective(img1, M, (img2.shape[1], img2.shape[0]))
-        utils.showImageAndStop("show_inside_sift",warped) # `e qui che fa il display della imm warpata con sift
-
         score = 0
         for i in good:
             score += i.distance
@@ -252,7 +249,7 @@ def chekcWithSIFT(img1,img2,sx):
 
         #utils.showImageAndStop('SIFT', img3)
 
-        return True , src_pts, dst_pts, good, warped
+        return True , src_pts, dst_pts, good, M
     else:
         return False, 0, 0, 0, 0
 
@@ -327,14 +324,14 @@ def detectKeyPoints(img_rgb,sx):
         #SIFT(img_gray, template, titolo_quadro)
 
         if is_detected:
-            detection_SIFT, src_pts, dst_pts, good, warped = chekcWithSIFT(img_gray, template,sx)
+            detection_SIFT, src_pts, dst_pts, good, M = chekcWithSIFT(img_gray, template,sx)
             if score < min_score and detection_SIFT:
                 min_score = score
                 text = "{} - score: {}".format(titolo_quadro, score)
                 room = "Stanza n.{}".format(stanza)
-                return text, room, warped
+                return text, room, M, template.shape[1], template.shape[0]
 
-    return text, room, 0
+    return text, room, 0, 0, 0
 
 def hougesLinesAndCorner(image):
     """

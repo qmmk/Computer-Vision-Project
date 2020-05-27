@@ -164,11 +164,12 @@ while (True):
                     '''
                     # RECTIFICATION
                     warped = 0
-                    text, tmp, im_tmp = rectify.detectKeyPoints(outs[idx],sx)
+                    text, tmp, M, w, h = rectify.detectKeyPoints(outs[idx],sx)
                     if tmp != "":
                         room = tmp
-                    if not np.isscalar(im_tmp):
-                        warped = im_tmp
+                    if not np.isscalar(M):
+                        warped = cv2.warpPerspective(outs[idx], M, (w, h))
+                        utils.showImageAndStop("warped_sift", warped)  # `e qui che fa il display della imm warpata con sift
                     imm = masks[idx]
                     out_bin_pad = cv2.copyMakeBorder(imm, 50, 50, 50, 50, 0)
                     out_imm_pad = cv2.copyMakeBorder(outs[idx], 50, 50, 50, 50, 0)
@@ -187,11 +188,12 @@ while (True):
                             if not np.isscalar(ret):
                                 warped = ret
                                 utils.showImageAndStop("warped_corners", warped)
-                                text, tmp, im_tmp = rectify.detectKeyPoints(warped,sx)
+                                text, tmp, M, w, h = rectify.detectKeyPoints(warped,sx)
                                 if tmp != "":
                                     room = tmp
-                                if not np.isscalar(im_tmp):
-                                    warped = im_tmp
+                                if not np.isscalar(M):
+                                    warped = cv2.warpPerspective(outs[idx], M, (w, h))
+                                    utils.showImageAndStop("warped_sift", warped)  # `e qui che fa il display della imm warpata con sift
                     if not np.isscalar(warped):
                         path = "./rectifications/" + str(n_frame) + "_" + str(n_quadro) + "_" + text + ".jpg"
                         cv2.imwrite(path, warped)
