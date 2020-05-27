@@ -232,31 +232,29 @@ def chekcWithSIFT(img1,img2,sx):
             M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 50.0)
 
         matchesMask = mask.ravel().tolist()
-        warped = cv2.warpPerspective(img1, M, (img2.shape[1], img2.shape[0]))
 
+        if M is None:
+            return False, 0, 0, 0, 0
+
+        warped = cv2.warpPerspective(img1, M, (img2.shape[1], img2.shape[0]))
         utils.showImageAndStop("show_inside_sift",warped) # `e qui che fa il display della imm warpata con sift
 
         score = 0
         for i in good:
             score += i.distance
 
-        print(score)
-
-
         draw_params = dict(matchColor=(0, 255, 0),  # draw matches in green color
                            singlePointColor=None,
                            matchesMask=matchesMask,  # draw only inliers
                            flags=2)
 
-        img3 = cv2.drawMatches(img1, kp1, img2, kp2, good, None, **draw_params)
+        #img3 = cv2.drawMatches(img1, kp1, img2, kp2, good, None, **draw_params)
 
-        utils.showImageAndStop('SIFT', img3)
+        #utils.showImageAndStop('SIFT', img3)
 
-
-
-        return True , src_pts, dst_pts, good
+        return True , src_pts, dst_pts, good, warped
     else:
-        return False, 0, 0, 0
+        return False, 0, 0, 0, 0
 
 def ORB(im1, im2, titolo_immagine):
     # Initiate SIFT detector
@@ -329,56 +327,14 @@ def detectKeyPoints(img_rgb,sx):
         #SIFT(img_gray, template, titolo_quadro)
 
         if is_detected:
-            detection_SIFT, src_pts, dst_pts, good = chekcWithSIFT(img_gray, template,sx)
+            detection_SIFT, src_pts, dst_pts, good, warped = chekcWithSIFT(img_gray, template,sx)
             if score < min_score and detection_SIFT:
                 min_score = score
                 text = "{} - score: {}".format(titolo_quadro, score)
                 room = "Stanza n.{}".format(stanza)
+                return text, room, warped
 
-                min_idx = it
-                best_dst_pts = dst_pts
-                best_src_pts = src_pts
-                sift_best_good = good
-                array1 = np.array((ret_kp1), dtype=np.float32)
-                array2 = np.array((ret_kp2), dtype=np.float32)
-                orb_best_good = matches
-
-    if min_score < 100000: #100000
-        id = min_idx
-        print("idx" + str(id))
-        npoints_sift=0
-        npoints_orb=0
-        if len(sift_best_good)>=4:
-            for i in range(len(sift_best_good)):
-                print("{})   {}".format(i, sift_best_good[i].distance))
-                if sift_best_good[i].distance < 150:
-                    npoints_sift+=1
-            if npoints_sift < 4:
-                npoints_sift = 4
-            if npoints_sift > 25:
-                npoints_sift = 25
-            warped, flag = rectify_image_with_correspondences(img_rgb, best_dst_pts[:npoints_sift], best_src_pts[:npoints_sift], 1000, 1000)
-
-        """
-        if len(orb_best_good) >= 4:
-            for i in range(len(orb_best_good)):
-                if orb_best_good[i].distance < 30:
-                    npoints_orb += 1
-            if npoints_orb < 4:
-                npoints_orb = 4
-            if npoints_orb > 30:
-                npoints_orb = 30
-            warped2, flag2 = rectify_image_with_correspondences(img_rgb, array2[:npoints_orb], array1[:npoints_orb], 1000, 1000)
-
-        utils.showImageAndStop("warped_orb", warped2)
-        """
-
-        if flag:
-            utils.showImageAndStop("warped_sift", warped)
-        else:
-            text = "quadro"
-
-    return text, room
+    return text, room, 0
 
 def hougesLinesAndCorner(image):
     """

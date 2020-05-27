@@ -4,6 +4,7 @@ import utils
 import yolo
 import detect
 import rectify
+import os
 import time
 from matplotlib import pyplot as plt
 from skimage.feature import hog
@@ -56,7 +57,7 @@ video_asd = "./videos/VIRB0416.MP4"
 video_uomo_trimmato = "./videos/Nuovi/uomo_trimmato.mp4"
 video_stanza_ampia = "./videos/20180206_114720_Trim.mp4"
 
-cap = cv2.VideoCapture(video_trim)
+cap = cv2.VideoCapture(video_madonna_bimbo)  #video_nome_lungo
 
 if not cap.isOpened():
     print("Unable to read camera feed")
@@ -72,13 +73,20 @@ template2 = cv2.imread('./match/match2.jpg', cv2.IMREAD_COLOR)
 template3 = cv2.imread('./match/match3.jpg', cv2.IMREAD_COLOR)
 template4 = cv2.imread('./match/match4.png', cv2.IMREAD_COLOR)
 
+dirname = 'rectifications'
+if not os.path.exists(dirname):
+    os.mkdir(dirname)
+
+n_frame = 0
 
 while (True):
     ret, frame = cap.read()
 
     if ret:
+        n_quadro = 0
+        print(frame.shape)
         #frame = utils.correct_distortion(frame, frame_height, frame_width)
-
+        #frame = utils.image_resize(frame, height=600)
         dict = []
 
         # DETECTION
@@ -146,11 +154,21 @@ while (True):
                     isBig = True
 
                 if entropy >= 1.3 and ((max_val1 <= 0.96 and max_val2 <= 0.96 and max_val3 <= 0.96) or isBig):
-
+                    '''
+                    utils.showImageAndStop("OOOOO", outs[idx])
+                    if (outs[idx].shape[0] > 800 or outs[idx].shape[1] > 800):
+                        if (outs[idx].shape[0] > outs[idx].shape[1]):
+                            outs[idx] = utils.image_resize(outs[idx], height=800)
+                        elif (outs[idx].shape[1] > outs[idx].shape[0]):
+                            outs[idx] = utils.image_resize(outs[idx], width=800)
+                    '''
                     # RECTIFICATION
-                    text, tmp = rectify.detectKeyPoints(outs[idx],sx)
+                    warped = 0
+                    text, tmp, im_tmp = rectify.detectKeyPoints(outs[idx],sx)
                     if tmp != "":
                         room = tmp
+                    if not np.isscalar(im_tmp):
+                        warped = im_tmp
                     imm = masks[idx]
                     out_bin_pad = cv2.copyMakeBorder(imm, 50, 50, 50, 50, 0)
                     out_imm_pad = cv2.copyMakeBorder(outs[idx], 50, 50, 50, 50, 0)
@@ -164,13 +182,21 @@ while (True):
                         p = rectify.order_corners(corners)
                         # se order_corners non dà errore
                         if p != 0:
-                            warped = rectify.rectify_image_2(out_imm_pad.shape[0], out_imm_pad.shape[1], out_imm_pad, p)
+                            ret = rectify.rectify_image_2(out_imm_pad.shape[0], out_imm_pad.shape[1], out_imm_pad, p)
                             #se rectify_image_2 non dà errore
-                            if not np.isscalar(warped):
+                            if not np.isscalar(ret):
+                                warped = ret
                                 utils.showImageAndStop("warped_corners", warped)
-                                text, tmp = rectify.detectKeyPoints(warped,sx)
+                                text, tmp, im_tmp = rectify.detectKeyPoints(warped,sx)
                                 if tmp != "":
                                     room = tmp
+                                if not np.isscalar(im_tmp):
+                                    warped = im_tmp
+                    if not np.isscalar(warped):
+                        path = "./rectifications/" + str(n_frame) + "_" + str(n_quadro) + "_" + text + ".jpg"
+                        cv2.imwrite(path, warped)
+                        n_quadro += 1
+
                     dict.append({'texts': text, 'rects': rects[idx]})
 
 
@@ -212,6 +238,8 @@ while (True):
 
         # Write the frame into the file 'output.avi'
         out.write(frame)
+
+        n_frame += 1
 
     # Break the loop
     else:
