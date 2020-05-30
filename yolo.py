@@ -14,7 +14,6 @@ net = cv2.dnn.readNet(weights, config)
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(face_dat)
 
-
 statua_w = cv2.imread("./match/statua_w.jpg", cv2.IMREAD_COLOR)
 statua_b = cv2.imread("./match/statua_b.jpg", cv2.IMREAD_COLOR)
 statua_c = cv2.imread("./match/statua_c.jpg", cv2.IMREAD_COLOR)
@@ -28,11 +27,9 @@ layer_names = net.getLayerNames()
 output_layers = [layer_names[i[0] - 1] for i in net.getUnconnectedOutLayers()]
 
 
-def detect_person(frame, height, width):
-    labels = []
+def detect_person(frame, height, width, dict):
     rects = []
 
-    isAlreadyDetected = False
     # Detecting objects
     blob = cv2.dnn.blobFromImage(frame, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
 
@@ -65,61 +62,38 @@ def detect_person(frame, height, width):
 
     indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.8, 0.3)
 
-
     for i in range(len(boxes)):
         if i in indexes:
-            x, y, w, h = boxes[i]
-            croppped = frame[y:y+h, x:x+w]
-            hist0 = utils.hist_compute_orb(croppped)
-            distance1 = cv2.compareHist(hist0, hist1, cv2.HISTCMP_BHATTACHARYYA)
-            distance2 = cv2.compareHist(hist0, hist2, cv2.HISTCMP_BHATTACHARYYA)
-            distance3 = cv2.compareHist(hist0, hist3, cv2.HISTCMP_BHATTACHARYYA)
-
-            if distance1 <= 0.6 or distance2 <= 0.6 or distance3 <= 0.6:
-                label = "statua"
-                isAlreadyDetected = True
-            else:
-                label = "person"
-
-            confidence = confidences[i]
-            rects.append(boxes[i])
-            labels.append(label + " " + str(round(confidence, 2)))
-            #utils.drawLabel(w, h, x, y, label + " " + str(round(confidence, 2)), frame)
-            #dict.append({'texts': label + " " + str(round(confidence, 2)), 'rects': boxes[i]})
+            if check_inside(boxes[i], dict):
+                rects.append({'texts': "person " + str(round(confidences[i], 2)), 'rects': boxes[i]})
+    dict.extend(rects)
+    return dict
 
 
-    return isAlreadyDetected, rects, labels
+def check_inside(person, rects):
+    for r in rects:
+        x1, y1, w, h = r['rects']
+        x2, y2 = x1 + w, y1 + h
+        X, Y, W, H = person
+        if (x1 < X < x2) and (x1 < (X + W) < x2) and (y1 < Y < y2) and (y1 < (Y + H) < y2):
+            return False
+    return True
 
 
 def midpoint(p1, p2):
     return int((p1.x + p2.x) / 2), int((p1.y + p2.y) / 2)
 
 
-def detect_eyes(frame, detected):
+def detect_eyes(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     faces = detector(gray)
-    rects = []
 
     for face in faces:
         landmarks = predictor(gray, face)
-        x = face.left()
-        y = face.top()
-        w = face.right() - face.left()
-        h = face.bottom() - face.top()
-        croppped = frame[y:y+h, x:x+w]
-        hist0 = utils.hist_compute_orb(croppped)
-        distance1 = cv2.compareHist(hist0, hist1, cv2.HISTCMP_BHATTACHARYYA)
-        distance2 = cv2.compareHist(hist0, hist2, cv2.HISTCMP_BHATTACHARYYA)
-        distance3 = cv2.compareHist(hist0, hist3, cv2.HISTCMP_BHATTACHARYYA)
 
-        if (distance1 <= 0.6 or distance2 <= 0.6 or distance3 <= 0.6) and not detected:
-            #label = "statua"
-            rects.append((x, y, w, h))
+        dx = midpoint(landmarks.part(37), landmarks.part(40))
+        sx = midpoint(landmarks.part(43), landmarks.part(46))
+        # cv2.circle(frame, dx, 5, (0, 255, 0), -1)
+        # cv2.circle(frame, sx, 5, (0, 255, 0), -1)
 
-        else:
-            dx = midpoint(landmarks.part(37), landmarks.part(40))
-            sx = midpoint(landmarks.part(43), landmarks.part(46))
-            cv2.circle(frame, dx, 5, (0, 255, 0), -1)
-            cv2.circle(frame, sx, 5, (0, 255, 0), -1)
-
-    return frame, rects
+    return frame

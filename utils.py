@@ -151,6 +151,8 @@ aperture = 1.4
 distance = 10
 def correct_distortion(frame, h, w):
     # Definisci matrice telecamera K
+    print(cam)
+    print(lens)
     '''
     K = np.array([[[673.9683892, 0., 343.68638231],
                    [0., 676.08466459, 245.31865398],

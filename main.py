@@ -64,6 +64,7 @@ if not cap.isOpened():
 
 frame_width = int(cap.get(3))
 frame_height = int(cap.get(4))
+
 out = cv2.VideoWriter('outpy.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30, (frame_width, frame_height))
 
 room = "Stanza generica"
@@ -204,29 +205,8 @@ while (True):
 
         # PERSON
 
-        detected, rects_yolo, label_yolo = yolo.detect_person(frame, frame_height, frame_width)
-        frame, rects_dec_eyes = yolo.detect_eyes(frame, detected)
-
-
-        # codice per controllo/aggiunta/rimozione rettangoli oggetti detctetati
-        for r in range(0, len(rects_yolo)):
-            dict.append({'texts': label_yolo[r], 'rects': rects_yolo[r]})
-        for r in range(0, len(rects_dec_eyes)):
-            dict.append({'texts': 'statua', 'rects': rects_dec_eyes[r]})
-
-        kkk = dict[:]
-        kk = []
-        for a in kkk:
-            kk.append(a['rects'])
-
-        listindexyolo = list(range(0, len(dict)))
-        listindexnoinside_yolo = utils.checkInside(kk, listindexyolo)
-        listindexnoinside_yolo.sort()
-
-        for index in reversed(listindexyolo):
-            if index in listindexnoinside_yolo:
-                a=dict.pop(index)
-        # fine controllo/aggiunta/rimozione
+        dict = yolo.detect_person(frame, frame_height, frame_width, dict)
+        frame = yolo.detect_eyes(frame)
 
         for di in dict:
             utils.drawLabel(di['rects'][2], di['rects'][3], di['rects'][0], di['rects'][1], di['texts'], frame)
