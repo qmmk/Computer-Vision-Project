@@ -107,7 +107,7 @@ while (True):
         for i in masks:
             corners = cv2.goodFeaturesToTrack(i, 4, 0.4, 80)
             print(corners)
-            if len(corners) == 4 and i.shape > (150,150):
+            if corners is not None and len(corners) == 4 and i.shape > (150,150):
                 sx,done = rectify.determineOrientation(i)
                 if done:
                     break
@@ -202,7 +202,7 @@ while (True):
             utils.drawLabel(di['rects'][2], di['rects'][3], di['rects'][0], di['rects'][1], di['texts'], frame)
 
         cv2.putText(frame, room, (20, frame_height - 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
-        utils.showImageAndStop("detect", frame)
+        #utils.showImageAndStop("detect", frame)
         # print(room)
 
         k = cv2.waitKey(5) & 0xFF
