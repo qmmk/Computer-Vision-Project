@@ -74,7 +74,7 @@ def optionalFilter(img):
     return result_norm
 
 
-def hybrid_edge_detection_V2(frame):
+def hybrid_edge_detection_V2(frame,no_gabor=False):
     gray_no_blur = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
 
@@ -91,14 +91,19 @@ def hybrid_edge_detection_V2(frame):
     canny = cv2.Canny(gray_no_blur, 50, 140)
     dilate_canny = cv2.dilate(canny, kernel2, iterations=1)
 
+
+
     img_bwa = cv2.bitwise_and(adapt_filter, dilate_canny)
 
 
-    img_bwa = cv2.bitwise_or(img_bwa, dilate_gabor)
+    if no_gabor == True:
+        img_bwa = cv2.bitwise_or(img_bwa, dilate_gabor)
+
 
     # img_bwa = cv2.erode(img_bwa, kernel2, iterations=2)
     img_bwa = cv2.erode(img_bwa, kernel, iterations=3)
     img_bwa = cv2.dilate(img_bwa, kernel, iterations=5)
+
 
     img_bwa = cv2.bitwise_or(adapt_filter, img_bwa)
 
@@ -221,7 +226,7 @@ def get_contours(src):
             # creo contorni da dare alla funzione getline e un frame nero
             cv2.drawContours(src_mask, [hull], 0, (255, 255, 255), 1)
             rects.append(rect)
-    utils.showImageAndStop('ROI with intersection',src_mask)
+    #utils.showImageAndStop('ROI with intersection',src_mask)
     return rects, hull_list, src_mask
 
 

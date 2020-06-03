@@ -280,7 +280,7 @@ def ORB(im1, im2, titolo_immagine):
     ngood = 10
 
     for m in matches:
-        if m.distance < 40:  # 50
+        if m.distance < 45:  # 40
             good.append(m)
             # Get the matching keypoints for each of the images
             img1_idx = m.queryIdx
@@ -295,7 +295,7 @@ def ORB(im1, im2, titolo_immagine):
         score = sum(x.distance for x in good[:ngood])
         print("{} -> score: {}".format(titolo_immagine, score))
 
-        if score < 350:  # 230
+        if score < 350:  # 350
             #img3 = cv2.drawMatches(im1, kp1, im2, kp2, good[:ngood], None, flags=2)
             #utils.showImageAndStop(titolo_immagine,img3)
             return True, good, retkp1, retkp2, score
@@ -391,28 +391,37 @@ def determineOrientation(im):
             lista_punti_y.append(y)
             cv2.circle(blank, (x, y), 3, 255, -1)
 
+    if len(lista_punti_x) != 4 or len(lista_punti_y) != 4:
+       return True,False
+
+
     lista_sx = []
     lista_dx = []
 
     #prendi punti piu a sx
     a = lista_punti_x.index(min(lista_punti_x))
     lista_sx.append((lista_punti_x[a],lista_punti_y[a]))
+    lista_punti_x.pop(a)
+    lista_punti_y.pop(a)
     a = lista_punti_x.index(min(lista_punti_x))
     lista_sx.append((lista_punti_x[a],lista_punti_y[a]))
 
     #prendi punti piu a dx
     a = lista_punti_x.index(max(lista_punti_x))
     lista_dx.append((lista_punti_x[a],lista_punti_y[a]))
+    lista_punti_x.pop(a)
+    lista_punti_y.pop(a)
     a = lista_punti_x.index(max(lista_punti_x))
     lista_dx.append((lista_punti_x[a],lista_punti_y[a]))
 
     sx = abs(lista_sx[0][1]-lista_sx[1][1])
     dx = abs(lista_dx[0][1]-lista_dx[1][1])
 
-    if sx < dx:
-        return False
 
-    return True
+    if sx < dx:
+        return False, True
+
+    return True, True
 
 
 

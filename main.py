@@ -9,61 +9,45 @@ import time
 from matplotlib import pyplot as plt
 from skimage.feature import hog
 from skimage import data, exposure
+import sys, getopt
 
-video_stronzo = './videos/VIRB0391.MP4'
-video_normale = './videos/VIRB0414.MP4'
-video_tondo = './videos/GOPR2051.MP4'
-video_comune = './videos/VIRB0407.MP4'
-video_madonna_bimbo = './videos/VIRB0392.MP4'
-video_boh = "./videos/VID_20180529_112440.mp4"  # ci vuole gabor filter da 30
-video_comune_trim = "./videos/trim.mp4"
-video_trim = "./videos/trimsss.mp4"
-video_diverso = './videos/VIRB0415.MP4'
-video_gente = './videos/GOPR1940.MP4'
-video_1 = './videos/GOPR1928.MP4'
-video_2 = './videos/GOPR1947.MP4'
-video_3 = './videos/GOPR2039.MP4'
-video_nome_lungo = './videos/VID_20180529_112539.mp4'
-video_persone_s = './videos/trim_2.mp4'
-video_facce = "./videos/20180206_114604.mp4"
-video_sono_le_11 = './videos/IMG_4082.MOV'
-video_fish_eye = './videos/GOPR5818.MP4'  # da scaricare
-video_statua_fish_eye = './videos/GOPR5831.MP4'  # da scaricare
-video_statua_negra = "./videos/IMG_7854.MOV"
-video_statue_col = "./videos/IMG_9630.MOV"
-video_statue_white = "./videos/IMG_4080.MOV"
-video_statue_white_t = "./videos/IMG_4080_Trim.mp4"
-video_k = "./videos/Nuovi/GOPR5827.MP4"
-video_o = "./videos/Nuovi/GOPR5825.MP4"
-video_q = "./videos/Nuovi/GOPR2049.MP4"
-video_pi = "./videos/Nuovi/IMG_9621.MOV"
-video_a = "./videos/Nuovi/IMG_9628.MOV"
-video_b = "./videos/Nuovi/IMG_4076.MOV"
-video_d = "./videos/Nuovi/IMG_4074.MOV"
-uomo_cappello = "./videos/Nuovi/IMG_2653.MOV"
-vid = "./videos/Nuovi/GOPR5828.MP4"
-video_zoom = "./videos/Nuovi/VID_20180529_112627.mp4"
-video_largo = "./videos/Nuovi/20180206_113800.mp4"
-video_cornice = "./videos/Nuovi/20180206_111931.mp4"
-video_no_cornice = "./videos/Nuovi/IMG_7852.MOV"
-video_tipo = "./videos/Nuovi/IMG_9622.MOV"
-video_ll = "./videos/Nuovi/VID_20180529_112706.mp4"
-video_corridoio = "./videos/Nuovi/VIRB0394.MP4"
-video_distorto = "./videos/GOPR5830.MP4"
-video_rombi = "./videos/GOPR5825.MP4"
-video_prete = "./videos/Nuovi/GOPR5826.MP4"
-video_gesu = "./videos/Nuovi/20180206_113600_Trim.mp4"
-video_asd = "./videos/VIRB0416.MP4"
-video_uomo_trimmato = "./videos/Nuovi/uomo_trimmato.mp4"
-video_stanza_ampia = "./videos/20180206_114720_Trim.mp4"
+no_gabor = True
+rectify_image = False
 
-cap = cv2.VideoCapture(video_madonna_bimbo)  #video_nome_lungo
+# Get full command-line arguments
+full_cmd_arguments = sys.argv
+
+# Keep all but the first
+argument_list = full_cmd_arguments[1:]
+short_options = "ri:n"
+long_options = ["rectify", "input", "no_gabor"]
+
+try:
+    arguments, values = getopt.getopt(argument_list,short_options ,long_options)
+except getopt.error as err:
+    print (str(err))
+    sys.exit(2)
+
+for current_argument, current_value in arguments:
+    if current_argument in ("-n","--no_gabor"):
+        print ("Enabling no gabor")
+        no_gabor=False
+    elif current_argument in ("-i", "--input"):
+        if current_value is None:
+            exit(2)
+    elif current_argument in ("-r", "--rectify"):
+        print("Enabling Rectify image")
+        rectify_image = True
+
+
+cap = cv2.VideoCapture(current_value)  #video_nome_lungo
 
 if not cap.isOpened():
     print("Unable to read camera feed")
 
 frame_width = int(cap.get(3))
 frame_height = int(cap.get(4))
+
 
 out = cv2.VideoWriter('outpy.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30, (frame_width, frame_height))
 
@@ -82,6 +66,8 @@ n_frame = 0
 
 while (True):
     ret, frame = cap.read()
+    if rectify_image:
+        frame = utils.correct_distortion(frame,frame_height,frame_width)
 
     if ret:
         n_quadro = 0
@@ -91,7 +77,7 @@ while (True):
         dict = []
 
         # DETECTION
-        src = detect.hybrid_edge_detection_V2(frame)
+        src = detect.hybrid_edge_detection_V2(frame,no_gabor)
 
 
         # CONTOURS
@@ -107,7 +93,7 @@ while (True):
         for idk in listindexfree:
             cv2.drawContours(blank, hulls, idk, (255, 255, 255), 1)
 
-        utils.showImageAndStop("ROI",blank)
+        #utils.showImageAndStop("ROI",blank)
 
         # CROP
         outs, masks, green = detect.cropping_frame(frame, hulls, src_mask)
@@ -120,9 +106,11 @@ while (True):
         # determianre orientamento
         for i in masks:
             corners = cv2.goodFeaturesToTrack(i, 4, 0.4, 80)
+            print(corners)
             if len(corners) == 4 and i.shape > (150,150):
-                sx = rectify.determineOrientation(i)
-                break
+                sx,done = rectify.determineOrientation(i)
+                if done:
+                    break
 
 
         # FEATURE EXTRACTION
@@ -138,7 +126,6 @@ while (True):
             # se è troppo piccolo scartalo
             if outs[idx].shape[0] >= template3.shape[0]:
 
-                #utils.showImageAndStop("cropped", outs[idx])
                 res1 = cv2.matchTemplate(outs[idx], template1, cv2.TM_CCORR_NORMED)
                 res2 = cv2.matchTemplate(outs[idx], template2, cv2.TM_CCORR_NORMED)
                 res3 = cv2.matchTemplate(outs[idx], template3, cv2.TM_CCORR_NORMED)
@@ -155,27 +142,28 @@ while (True):
                     isBig = True
 
                 if entropy >= 1.3 and ((max_val1 <= 0.96 and max_val2 <= 0.96 and max_val3 <= 0.96) or isBig):
-                    '''
-                    utils.showImageAndStop("OOOOO", outs[idx])
-                    if (outs[idx].shape[0] > 800 or outs[idx].shape[1] > 800):
-                        if (outs[idx].shape[0] > outs[idx].shape[1]):
-                            outs[idx] = utils.image_resize(outs[idx], height=800)
-                        elif (outs[idx].shape[1] > outs[idx].shape[0]):
-                            outs[idx] = utils.image_resize(outs[idx], width=800)
-                    '''
-                    # RECTIFICATION
-                    warped = 0
-                    text, tmp, M, w, h = rectify.detectKeyPoints(outs[idx],sx)
-                    if tmp != "":
-                        room = tmp
-                    if not np.isscalar(M):
-                        warped = cv2.warpPerspective(outs[idx], M, (w, h))
-                        utils.showImageAndStop("warped_sift", warped)  # `e qui che fa il display della imm warpata con sift
+
                     imm = masks[idx]
                     out_bin_pad = cv2.copyMakeBorder(imm, 50, 50, 50, 50, 0)
                     out_imm_pad = cv2.copyMakeBorder(outs[idx], 50, 50, 50, 50, 0)
 
                     corners = rectify.hougesLinesAndCorner(out_bin_pad)
+
+                    if len(corners) == 4:
+                        local_orientation = rectify.determineOrientation(i)
+                    else:
+                        local_orientation = sx
+
+                    print(local_orientation)
+
+                    # RECTIFICATION
+                    warped = 0
+                    text, tmp, M, w, h = rectify.detectKeyPoints(outs[idx], local_orientation)
+                    if tmp != "":
+                        room = tmp
+                    if not np.isscalar(M):
+                        warped = cv2.warpPerspective(outs[idx], M, (w, h))
+                        # utils.showImageAndStop("warped_sift",warped)  # `e qui che fa il display della imm warpata con sift
 
                     print("corner: {}".format(len(corners)))
                     print("text: {}".format(text))
@@ -188,17 +176,19 @@ while (True):
                             #se rectify_image_2 non dà errore
                             if not np.isscalar(ret):
                                 warped = ret
-                                utils.showImageAndStop("warped_corners", warped)
-                                text, tmp, M, w, h = rectify.detectKeyPoints(warped,sx)
+                                # utils.showImageAndStop("warped_corners", warped)
+                                text, tmp, M, w, h = rectify.detectKeyPoints(warped,local_orientation)
                                 if tmp != "":
                                     room = tmp
                                 if not np.isscalar(M):
-                                    warped = cv2.warpPerspective(outs[idx], M, (w, h))
-                                    utils.showImageAndStop("warped_sift", warped)  # `e qui che fa il display della imm warpata con sift
+                                    warped = cv2.warpPerspective(warped, M, (w, h))
+                                    # utils.showImageAndStop("warped_sift", warped)  # `e qui che fa il display della imm warpata con sift
                     if not np.isscalar(warped):
-                        path = "./rectifications/" + str(n_frame) + "_" + str(n_quadro) + "_" + text + ".jpg"
+                        text_n = text.split('-')[0]
+                        path = "./rectifications/" + str(n_frame) + "_" + str(n_quadro) + "_" + text_n + ".jpg"
                         cv2.imwrite(path, warped)
                         n_quadro += 1
+
 
                     dict.append({'texts': text, 'rects': rects[idx]})
 
@@ -211,6 +201,7 @@ while (True):
         for di in dict:
             utils.drawLabel(di['rects'][2], di['rects'][3], di['rects'][0], di['rects'][1], di['texts'], frame)
 
+        cv2.putText(frame, room, (20, frame_height - 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
         utils.showImageAndStop("detect", frame)
         # print(room)
 
