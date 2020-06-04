@@ -89,6 +89,7 @@ def hybrid_edge_detection_V2(frame,no_gabor=False):
     adapt_filter = adaptive_Filter(frame)
 
     canny = cv2.Canny(gray_no_blur, 50, 140)
+
     dilate_canny = cv2.dilate(canny, kernel2, iterations=1)
 
 
@@ -104,10 +105,10 @@ def hybrid_edge_detection_V2(frame,no_gabor=False):
     img_bwa = cv2.erode(img_bwa, kernel, iterations=3)
     img_bwa = cv2.dilate(img_bwa, kernel, iterations=5)
 
-
     img_bwa = cv2.bitwise_or(adapt_filter, img_bwa)
 
     img_bwa = np.where(img_bwa == 0, img_bwa, 255)
+
 
     return img_bwa
 
@@ -314,7 +315,7 @@ def compare_vectors(v,feature_vectors):
     itmax = -1
     v = v.squeeze(2)
     v = v.squeeze(0)
-    vec = torch.zeros([2048])
+    vec = torch.zeros([2048],dtype=torch.double)
 
     for i in range(2048):
         vec[i] = v[i][0]

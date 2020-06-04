@@ -108,6 +108,7 @@ def contourIntersect(contours, frame):
         if len(intersection) != 0:
             conts.append(i)
 
+
     return conts
 
 
@@ -143,6 +144,7 @@ def shrinkenCountoursList(hulls, frame, rects):
         return listindexfree
     listindexfree = contourIntersect(hulls, frame)
     listindexinside = checkInside(rects, listindexfree)
+    print(listindexfree,listindexinside)
     listindexfree = set(listindexfree) - set(listindexinside)
     return listindexfree
 
