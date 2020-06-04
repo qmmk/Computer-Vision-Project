@@ -314,7 +314,7 @@ def compare_vectors(v,feature_vectors):
     itmax = -1
     v = v.squeeze(2)
     v = v.squeeze(0)
-    vec = torch.zeros([2048])
+    vec = torch.zeros([2048],dtype=torch.double)
 
     for i in range(2048):
         vec[i] = v[i][0]

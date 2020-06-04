@@ -80,6 +80,14 @@ n_frame = 0
 
 while (True):
     ret, frame = cap.read()
+
+    if frame.shape[0]>frame.shape[1]:
+        if frame.shape[0] > 1080:
+            frame = utils.image_resize(frame, height=1080)
+    elif frame.shape[1]>frame.shape[0]:
+        if frame.shape[1] > 1920:
+            frame = utils.image_resize(frame, width=1920)
+
     if rectify_image:
         frame = utils.correct_distortion(frame,frame_height,frame_width)
 
@@ -161,7 +169,7 @@ while (True):
                 #print(vec.shape)
                 best_cos = detect.compare_vectors(vec, feature_vectors)
 
-                if entropy >= 1.3 and best_cos < 0.75:# ((max_val1 <= 0.96 and max_val2 <= 0.96 and max_val3 <= 0.96) or isBig) and best_cos < 0.75:
+                if entropy >= 1.3 and ((max_val1 <= 0.96 and max_val2 <= 0.96 and max_val3 <= 0.96) or isBig) and best_cos < 0.71:
 
                     imm = masks[idx]
                     out_bin_pad = cv2.copyMakeBorder(imm, 50, 50, 50, 50, 0)
