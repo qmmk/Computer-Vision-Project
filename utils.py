@@ -3,9 +3,11 @@ import numpy as np
 import cv2
 import csv
 import lensfunpy
+from numpy import genfromtxt
+import torch
 
 lista_cvs = './dataset/data.csv'
-
+feature_csv = './content/feature_vectors.csv'
 
 def carica_lista_cvs():
     lista_titoli = []
@@ -21,6 +23,12 @@ def carica_lista_cvs():
 
     return lista_titoli, lista_immagini, lista_stanze
 
+def carica_feature_csv():
+    #feature_vectors = []
+    #with open(feature_csv, newline='') as csvfile:
+    feature_vectors = genfromtxt(feature_csv, delimiter=',')
+    ret = torch.from_numpy(feature_vectors)
+    return ret
 
 def compute_histogram(img):
     planes = []
@@ -130,6 +138,9 @@ def reduceListOuts(outs, rects, listindexfree):
 
 
 def shrinkenCountoursList(hulls, frame, rects):
+    if len(hulls) == 1:
+        listindexfree = [0]
+        return listindexfree
     listindexfree = contourIntersect(hulls, frame)
     listindexinside = checkInside(rects, listindexfree)
     listindexfree = set(listindexfree) - set(listindexinside)

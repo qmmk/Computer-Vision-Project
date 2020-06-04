@@ -293,7 +293,7 @@ def ORB(im1, im2, titolo_immagine):
     if len(good) >= ngood:
 
         score = sum(x.distance for x in good[:ngood])
-        print("{} -> score: {}".format(titolo_immagine, score))
+        #print("{} -> score: {}".format(titolo_immagine, score))
 
         if score < 350:  # 350
             #img3 = cv2.drawMatches(im1, kp1, im2, kp2, good[:ngood], None, flags=2)

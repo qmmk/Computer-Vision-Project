@@ -133,7 +133,7 @@ def hybrid_edge_detection(frame):
     edges_canny = cv2.Canny(gray_no_blur, 100, 200)
 
     # adaptive
-    # edges = cv2.adaptiveThreshold(gabor, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    #edges = cv2.adaptiveThreshold(gabor, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
     edges = cv2.bitwise_not(gabor)
 
     # morpho
@@ -288,3 +288,44 @@ def image_crop_bin(frame, hull_list, i):
     (bottomy, bottomx) = (np.max(y), np.max(x))
     out = out[topy:bottomy + 1, topx:bottomx + 1]
     return out
+
+def get_feature_vector(img,scaler,to_tensor,normalize,layer,resnet):
+
+    #  Create a PyTorch Variable with the transformed image
+    t_img = Variable(normalize(to_tensor(scaler(img))).unsqueeze(0))
+    #  Create a vector of zeros that will hold our feature vector
+    #    The 'avgpool' layer has an output size of 512
+    #my_embedding = torch.zeros(512)
+    my_embedding = torch.zeros([1, 2048, 1, 2048])
+    #  Define a function that will copy the output of a layer
+    def copy_data(m, i, o):
+        my_embedding.copy_(o.data)
+    #  Attach that function to our selected layer
+    h = layer.register_forward_hook(copy_data)
+    #  Run the model on our transformed image
+    resnet(t_img)
+    #  Detach our copy function from the layer
+    h.remove()
+    # 8. Return the feature vector
+    return my_embedding
+
+def compare_vectors(v,feature_vectors):
+    max = 0
+    itmax = -1
+    v = v.squeeze(2)
+    v = v.squeeze(0)
+    vec = torch.zeros([2048])
+
+    for i in range(2048):
+        vec[i] = v[i][0]
+    for it in range(len(feature_vectors)):
+        cos = nn.CosineSimilarity(dim=1, eps=1e-5)
+        cos_sim = cos(vec.unsqueeze(0), feature_vectors[it].unsqueeze(0))
+        #print(cos_sim)
+        if cos_sim > max:
+            max = cos_sim
+            itmax = it
+
+    print("id: {} number: {} --> cos_score: {}".format(itmax, str(itmax), max))
+
+    return max

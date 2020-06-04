@@ -10,6 +10,11 @@ from matplotlib import pyplot as plt
 from skimage.feature import hog
 from skimage import data, exposure
 import sys, getopt
+import torch
+import torchvision.models as models
+from torchvision import transforms
+from torch.autograd import Variable
+from PIL import Image
 
 no_gabor = True
 rectify_image = False
@@ -39,6 +44,15 @@ for current_argument, current_value in arguments:
         print("Enabling Rectify image")
         rectify_image = True
 
+#INITIALIZE RESNET
+feature_vectors = utils.carica_feature_csv()
+resnet101 = models.resnet101(pretrained=True)
+layer = resnet101._modules.get('avgpool')
+resnet101.eval()
+scaler = transforms.Resize((224, 224))
+normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                 std=[0.229, 0.224, 0.225])
+to_tensor = transforms.ToTensor()
 
 cap = cv2.VideoCapture(current_value)  #video_nome_lungo
 
@@ -78,7 +92,6 @@ while (True):
 
         # DETECTION
         src = detect.hybrid_edge_detection_V2(frame,no_gabor)
-
 
         # CONTOURS
         rects, hulls, src_mask = detect.get_contours(src)
@@ -130,18 +143,25 @@ while (True):
                 res2 = cv2.matchTemplate(outs[idx], template2, cv2.TM_CCORR_NORMED)
                 res3 = cv2.matchTemplate(outs[idx], template3, cv2.TM_CCORR_NORMED)
                 res4 = cv2.matchTemplate(outs[idx], template4, cv2.TM_CCORR_NORMED)
-
+    
                 min_val1, max_val1, min_loc1, max_loc1 = cv2.minMaxLoc(res1)
                 min_val2, max_val2, min_loc2, max_loc2 = cv2.minMaxLoc(res2)
                 min_val3, max_val3, min_loc3, max_loc3 = cv2.minMaxLoc(res3)
                 min_val4, max_val4, min_loc4, max_loc4 = cv2.minMaxLoc(res4)
-
-
+            
+    
                 isBig = False
                 if outs[idx].shape[0] > 300 and outs[idx].shape[1] > 300:
                     isBig = True
 
-                if entropy >= 1.3 and ((max_val1 <= 0.96 and max_val2 <= 0.96 and max_val3 <= 0.96) or isBig):
+                #utils.showImageAndStop("cropped",outs[idx])
+                # COSINE SIMILARITY
+                im_pil = Image.fromarray(outs[idx])
+                vec = detect.get_feature_vector(im_pil, scaler, to_tensor, normalize, layer, resnet101)
+                #print(vec.shape)
+                best_cos = detect.compare_vectors(vec, feature_vectors)
+
+                if entropy >= 1.3 and best_cos < 0.75:# ((max_val1 <= 0.96 and max_val2 <= 0.96 and max_val3 <= 0.96) or isBig) and best_cos < 0.75:
 
                     imm = masks[idx]
                     out_bin_pad = cv2.copyMakeBorder(imm, 50, 50, 50, 50, 0)
