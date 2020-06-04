@@ -89,6 +89,7 @@ def hybrid_edge_detection_V2(frame,no_gabor=False):
     adapt_filter = adaptive_Filter(frame)
 
     canny = cv2.Canny(gray_no_blur, 50, 140)
+
     dilate_canny = cv2.dilate(canny, kernel2, iterations=1)
 
 
@@ -104,10 +105,10 @@ def hybrid_edge_detection_V2(frame,no_gabor=False):
     img_bwa = cv2.erode(img_bwa, kernel, iterations=3)
     img_bwa = cv2.dilate(img_bwa, kernel, iterations=5)
 
-
     img_bwa = cv2.bitwise_or(adapt_filter, img_bwa)
 
     img_bwa = np.where(img_bwa == 0, img_bwa, 255)
+
 
     return img_bwa
 

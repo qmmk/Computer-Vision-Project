@@ -54,7 +54,7 @@ normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                  std=[0.229, 0.224, 0.225])
 to_tensor = transforms.ToTensor()
 
-cap = cv2.VideoCapture(current_value)  #video_nome_lungo
+cap = cv2.VideoCapture(current_value)
 
 if not cap.isOpened():
     print("Unable to read camera feed")
@@ -108,7 +108,9 @@ while (True):
         # estrae gli indici delle roi senza intersezioni e rimuove gli indici di roi contenute in altre roi
         # utile per aumentare le performance e iterare solo su contorni certi
         # riduzioni falsi positivi
+
         listindexfree = utils.shrinkenCountoursList(hulls, frame, rects)
+
 
         blank = np.zeros_like(frame)
         for idk in listindexfree:
@@ -120,6 +122,7 @@ while (True):
         outs, masks, green = detect.cropping_frame(frame, hulls, src_mask)
 
         # riduzione effettiva della lista di contorni e rect tramite index calcolati
+
         outs, rects = utils.reduceListOuts(outs, rects, listindexfree)
 
 
@@ -132,6 +135,7 @@ while (True):
                 sx,done = rectify.determineOrientation(i)
                 if done:
                     break
+
 
 
         # FEATURE EXTRACTION
