@@ -92,10 +92,7 @@ def hybrid_edge_detection_V2(frame,no_gabor=False):
 
     dilate_canny = cv2.dilate(canny, kernel2, iterations=1)
 
-
-
     img_bwa = cv2.bitwise_and(adapt_filter, dilate_canny)
-
 
     if no_gabor == True:
         img_bwa = cv2.bitwise_or(img_bwa, dilate_gabor)
@@ -297,7 +294,7 @@ def get_feature_vector(img,scaler,to_tensor,normalize,layer,resnet):
     #  Create a vector of zeros that will hold our feature vector
     #    The 'avgpool' layer has an output size of 512
     #my_embedding = torch.zeros(512)
-    my_embedding = torch.zeros([1, 2048, 1, 2048])
+    my_embedding = torch.zeros([1, 512, 1, 512])
     #  Define a function that will copy the output of a layer
     def copy_data(m, i, o):
         my_embedding.copy_(o.data)

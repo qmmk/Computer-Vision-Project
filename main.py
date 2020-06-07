@@ -15,6 +15,9 @@ import torchvision.models as models
 from torchvision import transforms
 from torch.autograd import Variable
 from PIL import Image
+import prediction
+
+SVM = prediction.setup()
 
 no_gabor = True
 rectify_image = False
@@ -46,9 +49,9 @@ for current_argument, current_value in arguments:
 
 #INITIALIZE RESNET
 feature_vectors = utils.carica_feature_csv()
-resnet101 = models.resnet101(pretrained=True)
-layer = resnet101._modules.get('avgpool')
-resnet101.eval()
+resnet18 = models.resnet18(pretrained=True)
+layer = resnet18._modules.get('avgpool')
+resnet18.eval()
 scaler = transforms.Resize((224, 224))
 normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                  std=[0.229, 0.224, 0.225])
@@ -169,11 +172,15 @@ while (True):
                 #utils.showImageAndStop("cropped",outs[idx])
                 # COSINE SIMILARITY
                 im_pil = Image.fromarray(outs[idx])
-                vec = detect.get_feature_vector(im_pil, scaler, to_tensor, normalize, layer, resnet101)
-                #print(vec.shape)
-                best_cos = detect.compare_vectors(vec, feature_vectors)
+                vec = detect.get_feature_vector(im_pil, scaler, to_tensor, normalize, layer, resnet18)
 
-                if entropy >= 1.3 and ((max_val1 <= 0.96 and max_val2 <= 0.96 and max_val3 <= 0.96) or isBig) and best_cos < 0.71:
+                prediction_svm = prediction.check(SVM,vec)
+
+                #print(vec.shape)
+                #best_cos = detect.compare_vectors(vec, feature_vectors)
+
+                #if entropy >= 1.3 and ((max_val1 <= 0.96 and max_val2 <= 0.96 and max_val3 <= 0.96) or isBig) and best_cos < 0.71:
+                if entropy >= 1.3 and prediction_svm:
 
                     imm = masks[idx]
                     out_bin_pad = cv2.copyMakeBorder(imm, 50, 50, 50, 50, 0)
@@ -234,7 +241,7 @@ while (True):
             utils.drawLabel(di['rects'][2], di['rects'][3], di['rects'][0], di['rects'][1], di['texts'], frame)
 
         cv2.putText(frame, room, (20, frame_height - 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
-        #utils.showImageAndStop("detect", frame)
+        utils.showImageAndStop("detect", frame)
         # print(room)
 
         k = cv2.waitKey(5) & 0xFF
