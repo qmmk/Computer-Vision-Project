@@ -116,17 +116,17 @@ while (True):
 
 
         blank = np.zeros_like(frame)
-        for idk in listindexfree:
+        for idk in range(len(hulls)):
             cv2.drawContours(blank, hulls, idk, (255, 255, 255), 1)
 
-        #utils.showImageAndStop("ROI",blank)
+        utils.showImageAndStop("ROI",blank)
 
         # CROP
         outs, masks, green = detect.cropping_frame(frame, hulls, src_mask)
 
         # riduzione effettiva della lista di contorni e rect tramite index calcolati
 
-        outs, rects = utils.reduceListOuts(outs, rects, listindexfree)
+        # outs, rects = utils.reduceListOuts(outs, rects, listindexfree)
 
 
         sx = True

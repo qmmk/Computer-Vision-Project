@@ -5,7 +5,7 @@ from sklearn.metrics import classification_report, confusion_matrix
 import torch
 
 def setup():
-    bankdata = pd.read_csv("./dataset/dataset_SVM.csv")
+    bankdata = pd.read_csv("./dataset/dataset_SVM_NEW.csv")
 
     X = bankdata.drop('class', axis=1)
     y = bankdata['class']
