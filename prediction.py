@@ -5,14 +5,14 @@ from sklearn.metrics import classification_report, confusion_matrix
 import torch
 
 def setup():
-    bankdata = pd.read_csv("./dataset/dataset_SVM_NEW.csv")
+    bankdata = pd.read_csv("./dataset/dataset_SVM_v3.csv")
 
     X = bankdata.drop('class', axis=1)
     y = bankdata['class']
 
     # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20)
 
-    svclassifier = SVC(kernel='poly')
+    svclassifier = SVC(kernel='rbf')
     svclassifier.fit(X, y)
     return svclassifier
 
