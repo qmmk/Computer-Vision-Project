@@ -14,13 +14,6 @@ net = cv2.dnn.readNet(weights, config)
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(face_dat)
 
-statua_w = cv2.imread("./match/statua_w.jpg", cv2.IMREAD_COLOR)
-statua_b = cv2.imread("./match/statua_b.jpg", cv2.IMREAD_COLOR)
-statua_c = cv2.imread("./match/statua_c.jpg", cv2.IMREAD_COLOR)
-hist1 = utils.hist_compute_orb(statua_b)
-hist2 = utils.hist_compute_orb(statua_c)
-hist3 = utils.hist_compute_orb(statua_w)
-
 with open(names, "r") as f:
     classes = [line.strip() for line in f.readlines()]
 layer_names = net.getLayerNames()

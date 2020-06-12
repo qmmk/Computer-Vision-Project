@@ -1,4 +1,4 @@
-from wand.image import Image
+from matplotlib import pyplot as plt
 import numpy as np
 import cv2
 import csv
@@ -8,6 +8,8 @@ import torch
 
 lista_cvs = './dataset/data.csv'
 feature_csv = './content/feature_vectors.csv'
+map_frame = "./content/map.png"
+
 
 def carica_lista_cvs():
     lista_titoli = []
@@ -23,44 +25,13 @@ def carica_lista_cvs():
 
     return lista_titoli, lista_immagini, lista_stanze
 
+
 def carica_feature_csv():
-    #feature_vectors = []
-    #with open(feature_csv, newline='') as csvfile:
+    # feature_vectors = []
+    # with open(feature_csv, newline='') as csvfile:
     feature_vectors = genfromtxt(feature_csv, delimiter=',')
     ret = torch.from_numpy(feature_vectors)
     return ret
-
-def compute_histogram(img):
-    planes = []
-    if len(img.shape) == 3:
-        h, w, d = img.shape
-        h_w = h * w
-        if d == 3:
-            p1 = img[:, :, 0]
-            p2 = img[:, :, 1]
-            p3 = img[:, :, 2]
-            planes = [p1, p2, p3]
-        else:
-            planes = [img]
-
-    if len(img.shape) == 2:
-        h_w, d = img.shape
-        if d == 3:
-            p1 = img[:, 0]
-            p2 = img[:, 1]
-            p3 = img[:, 2]
-            planes = [p1, p2, p3]
-        else:
-            planes = [img]
-
-    histogram = np.zeros(256 * d)
-    for i in np.arange(len(planes)):
-        p = planes[i]
-        for val in np.unique(p):
-            count = np.sum(p == val)
-            histogram[val + i * 256] = count
-    histogram = histogram / img.size
-    return histogram
 
 
 def hist_compute_orb(image):
@@ -108,7 +79,6 @@ def contourIntersect(contours, frame):
         if len(intersection) != 0:
             conts.append(i)
 
-
     return conts
 
 
@@ -144,7 +114,7 @@ def shrinkenCountoursList(hulls, frame, rects):
         return listindexfree
     listindexfree = contourIntersect(hulls, frame)
     listindexinside = checkInside(rects, listindexfree)
-    print(listindexfree,listindexinside)
+    print(listindexfree, listindexinside)
     listindexfree = set(listindexfree) - set(listindexinside)
     return listindexfree
 
@@ -155,56 +125,15 @@ lens_maker = 'GOPRO'
 lens_model = 'fixed lens'
 
 db = lensfunpy.Database()
-print(db.find_cameras(cam_maker, cam_model)[0])
 cam = db.find_cameras(cam_maker, cam_model)[0]
 lens = db.find_lenses(cam, lens_maker, lens_model)[0]
 
 focal_length = 28.0
 aperture = 1.4
 distance = 10
+
+
 def correct_distortion(frame, h, w):
-    # Definisci matrice telecamera K
-    print(cam)
-    print(lens)
-    '''
-    K = np.array([[[673.9683892, 0., 343.68638231],
-                   [0., 676.08466459, 245.31865398],
-                   [0., 0., 1.]]])
-
-    # Definisce i coefficienti di distorsione d
-    #d = np.array([5.44787247e-02, 1.23043244e-01, - 4.52559581e-04, 5.47011732e-03, - 6.83110234e-01])
-    d = np.array([0.3, 0.001, 0.0, 0.0, 0.01])
-
-    # Leggi un'immagine di esempio e acquisisci le sue dimensioni
-    # img = cv2.imread("calibrazione_campioni / 2016-07-13-124020.jpg")
-    # h, w = img.shape[: 2]
-
-    # Genera nuova matrice telecamera dai parametri
-    # newcameramatrix, roi = cv2.getOptimalNewCameraMatrix(K, d, (w, h), 0)
-
-    # Genera tabelle di ricerca per rimappare l' immagine della telecamera
-
-    # mapx, mapy = cv2.initUndistortRectifyMap(K, d, None, newcameramatrix, (w, h), 5)
-
-    # Rimappa l'immagine originale in una nuova immagine
-    # newimg = cv2.remap(frame, mapx, mapy, cv2.INTER_LINEAR)
-
-    with Image(frame) as img:
-        #print(img.size)
-        img.virtual_pixel = 'transparent'
-        img.distort('barrel', -(0.2, 0.0, 0.0, 1.0))
-        # img.save(filename='checks_barrel.png')
-        # convert to opencv/numpy array format
-        img_opencv = np.array(img)
-    '''
-
-
-    #image_path = '/path/to/image.tiff'
-    #undistorted_image_path = '/path/to/image_undist.tiff'
-
-    #im = cv2.imread(image_path)
-    #height, width = im.shape[0], im.shape[1]
-
     mod = lensfunpy.Modifier(lens, cam.crop_factor, w, h)
     mod.initialize(focal_length, aperture, distance)
 
@@ -212,7 +141,8 @@ def correct_distortion(frame, h, w):
     im_undistorted = cv2.remap(frame, undist_coords, None, cv2.INTER_LANCZOS4)
     return im_undistorted
 
-def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
+
+def image_resize(image, width=None, height=None, inter=cv2.INTER_AREA):
     # initialize the dimensions of the image to be resized and
     # grab the image size
     dim = None
@@ -238,7 +168,84 @@ def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
         dim = (width, int(h * r))
 
     # resize the image
-    resized = cv2.resize(image, dim, interpolation = inter)
+    resized = cv2.resize(image, dim, interpolation=inter)
 
     # return the resized image
     return resized
+
+
+def drawMap(map, stanza):
+    stz = 0
+    if stanza != "Stanza generica":
+        try:
+            stz = int(stanza)
+        except ValueError:
+            stz = 0
+    cv2.circle(map, drawPoint(stz), 10, (0, 255, 0), -1)
+    return map
+
+
+def drawPoint(index):
+    room = {
+        0: (584, 230),
+        1: (985, 514),
+        2: (985, 657),
+        3: (880, 657),
+        4: (773, 657),
+        5: (670, 657),
+        6: (563, 657),
+        7: (465, 657),
+        8: (386, 657),
+        9: (308, 657),
+        10: (236, 657),
+        11: (162, 657),
+        12: (57, 657),
+        13: (52, 512),
+        14: (59, 359),
+        15: (58, 218),
+        16: (78, 61),
+        17: (183, 61),
+        18: (268, 61),
+        19: (215, 258),
+        20: (260, 511),
+        21: (578, 514),
+        22: (827, 512)
+    }
+    return room.get(index)
+
+
+def display(room, res, frame, src_mask):
+    map = cv2.imread(map_frame, cv2.IMREAD_COLOR)
+    map = drawMap(map, room)
+    vert = np.zeros(shape=(1, 600, 3))
+    for dis in res:
+        comb = np.hstack((cv2.resize(dis['not'], (300, 300)), cv2.resize(dis['yes'], (300, 300))))
+        vert = np.vstack((vert, comb))
+
+    fig, axes = plt.subplots(2, 2)
+    axes[0][0].imshow(frame)
+    axes[0][0].set_title('Detection')
+    axes[0][1].imshow(src_mask)
+    axes[0][1].set_title('Region of interest')
+    axes[1][0].imshow(map)
+    axes[1][0].set_title('Museum map')
+    axes[1][1].imshow(comb)
+    axes[1][1].set_title('Rectification')
+
+    for ax in axes:
+        ax[0].spines['top'].set_visible(False)
+        ax[0].spines['left'].set_visible(False)
+        ax[0].spines['bottom'].set_visible(False)
+        ax[0].spines['right'].set_visible(False)
+        ax[0].set_xticks([])
+        ax[0].set_yticks([])
+
+        ax[1].spines['top'].set_visible(False)
+        ax[1].spines['left'].set_visible(False)
+        ax[1].spines['bottom'].set_visible(False)
+        ax[1].spines['right'].set_visible(False)
+        ax[1].set_xticks([])
+        ax[1].set_yticks([])
+
+    plt.show()
+    return

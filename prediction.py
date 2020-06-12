@@ -4,6 +4,7 @@ from sklearn.svm import SVC
 from sklearn.metrics import classification_report, confusion_matrix
 import torch
 
+
 def setup():
     bankdata = pd.read_csv("./dataset/dataset_SVM_v3.csv")
 
@@ -16,7 +17,8 @@ def setup():
     svclassifier.fit(X, y)
     return svclassifier
 
-def check(svclassifier_,v):
+
+def check(svclassifier_, v):
     v = v.squeeze(2)
     v = v.squeeze(0)
     vec = []
@@ -28,8 +30,6 @@ def check(svclassifier_,v):
         return True
     else:
         return False
-
-
 
 # print(confusion_matrix(y_test,y_pred))
 # print(classification_report(y_test,y_pred))

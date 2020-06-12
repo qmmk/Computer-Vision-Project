@@ -5,15 +5,9 @@ import yolo
 import detect
 import rectify
 import os
-import time
-from matplotlib import pyplot as plt
-from skimage.feature import hog
-from skimage import data, exposure
 import sys, getopt
-import torch
 import torchvision.models as models
 from torchvision import transforms
-from torch.autograd import Variable
 from PIL import Image
 import prediction
 
@@ -31,15 +25,15 @@ short_options = "ri:n"
 long_options = ["rectify", "input", "no_gabor"]
 
 try:
-    arguments, values = getopt.getopt(argument_list,short_options ,long_options)
+    arguments, values = getopt.getopt(argument_list, short_options, long_options)
 except getopt.error as err:
-    print (str(err))
+    print(str(err))
     sys.exit(2)
 
 for current_argument, current_value in arguments:
-    if current_argument in ("-n","--no_gabor"):
-        print ("Enabling no gabor")
-        no_gabor=False
+    if current_argument in ("-n", "--no_gabor"):
+        print("Enabling no gabor")
+        no_gabor = False
     elif current_argument in ("-i", "--input"):
         if current_value is None:
             exit(2)
@@ -47,17 +41,17 @@ for current_argument, current_value in arguments:
         print("Enabling Rectify image")
         rectify_image = True
 
-#INITIALIZE RESNET
+# INITIALIZE RESNET
 feature_vectors = utils.carica_feature_csv()
 resnet18 = models.resnet18(pretrained=True)
 layer = resnet18._modules.get('avgpool')
 resnet18.eval()
 scaler = transforms.Resize((224, 224))
-normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])
+normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 to_tensor = transforms.ToTensor()
 
-cap = cv2.VideoCapture(current_value)
+video = './videos/VIRB0415.MP4'
+cap = cv2.VideoCapture(video)
 
 if not cap.isOpened():
     print("Unable to read camera feed")
@@ -65,17 +59,11 @@ if not cap.isOpened():
 frame_width = int(cap.get(3))
 frame_height = int(cap.get(4))
 
-
 out = cv2.VideoWriter('outpy.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30, (frame_width, frame_height))
 
 room = "Stanza generica"
-
-template1 = cv2.imread('./match/match1.jpg', cv2.IMREAD_COLOR)
-template2 = cv2.imread('./match/match2.jpg', cv2.IMREAD_COLOR)
-template3 = cv2.imread('./match/match3.jpg', cv2.IMREAD_COLOR)
-template4 = cv2.imread('./match/match4.png', cv2.IMREAD_COLOR)
-
 dirname = 'rectifications'
+
 if not os.path.exists(dirname):
     os.mkdir(dirname)
 
@@ -84,165 +72,96 @@ n_frame = 0
 while (True):
     ret, frame = cap.read()
 
-    if frame.shape[0]>frame.shape[1]:
+    if frame.shape[0] > frame.shape[1]:
         if frame.shape[0] > 1080:
             frame = utils.image_resize(frame, height=1080)
-    elif frame.shape[1]>frame.shape[0]:
+    elif frame.shape[1] > frame.shape[0]:
         if frame.shape[1] > 1920:
             frame = utils.image_resize(frame, width=1920)
 
     if rectify_image:
-        frame = utils.correct_distortion(frame,frame_height,frame_width)
+        frame = utils.correct_distortion(frame, frame_height, frame_width)
 
     if ret:
         n_quadro = 0
-        print(frame.shape)
-        #frame = utils.correct_distortion(frame, frame_height, frame_width)
-        #frame = utils.image_resize(frame, height=600)
         dict = []
+        res = []
 
         # DETECTION
-        src = detect.hybrid_edge_detection_V2(frame,no_gabor)
+        src = detect.hybrid_edge_detection_V2(frame, no_gabor)
 
         # CONTOURS
         rects, hulls, src_mask = detect.get_contours(src)
 
-
-        # estrae gli indici delle roi senza intersezioni e rimuove gli indici di roi contenute in altre roi
-        # utile per aumentare le performance e iterare solo su contorni certi
-        # riduzioni falsi positivi
-
+        # indici roi senza intersezioni e no contenute
         listindexfree = utils.shrinkenCountoursList(hulls, frame, rects)
-
-
-        blank = np.zeros_like(frame)
-        for idk in range(len(hulls)):
-            cv2.drawContours(blank, hulls, idk, (255, 255, 255), 1)
-
-        utils.showImageAndStop("ROI",blank)
 
         # CROP
         outs, masks, green = detect.cropping_frame(frame, hulls, src_mask)
 
-        # riduzione effettiva della lista di contorni e rect tramite index calcolati
+        outs, rects = utils.reduceListOuts(outs, rects, listindexfree)
 
-        # outs, rects = utils.reduceListOuts(outs, rects, listindexfree)
-
-
+        # orientamento sx/dx
         sx = True
-        # determianre orientamento
         for i in masks:
             corners = cv2.goodFeaturesToTrack(i, 4, 0.4, 80)
-            print(corners)
-            if corners is not None and len(corners) == 4 and i.shape > (150,150):
-                sx,done = rectify.determineOrientation(i)
+            if corners is not None and len(corners) == 4 and i.shape > (150, 150):
+                sx, done = rectify.determineOrientation(i)
                 if done:
                     break
 
-
-
         # FEATURE EXTRACTION
         for idx in range(len(outs)):
-            hist = utils.compute_histogram(outs[idx])
-            # entropy = utils.entropy(hist)
-            # print(entropy)
-            hist0 = utils.hist_compute_orb(green[idx])
+            hist = utils.hist_compute_orb(green[idx])
+            entropy = utils.entropy(hist)
 
-            entropy = utils.entropy(hist0)
-            print(entropy)
+            # COSINE SIMILARITY
+            im_pil = Image.fromarray(outs[idx])
+            vec = detect.get_feature_vector(im_pil, scaler, to_tensor, normalize, layer, resnet18)
 
-            # se è troppo piccolo scartalo
-            if outs[idx].shape[0] >= template3.shape[0]:
+            prediction_svm = prediction.check(SVM, vec)
 
-                res1 = cv2.matchTemplate(outs[idx], template1, cv2.TM_CCORR_NORMED)
-                res2 = cv2.matchTemplate(outs[idx], template2, cv2.TM_CCORR_NORMED)
-                res3 = cv2.matchTemplate(outs[idx], template3, cv2.TM_CCORR_NORMED)
-                res4 = cv2.matchTemplate(outs[idx], template4, cv2.TM_CCORR_NORMED)
-    
-                min_val1, max_val1, min_loc1, max_loc1 = cv2.minMaxLoc(res1)
-                min_val2, max_val2, min_loc2, max_loc2 = cv2.minMaxLoc(res2)
-                min_val3, max_val3, min_loc3, max_loc3 = cv2.minMaxLoc(res3)
-                min_val4, max_val4, min_loc4, max_loc4 = cv2.minMaxLoc(res4)
-            
-    
-                isBig = False
-                if outs[idx].shape[0] > 300 and outs[idx].shape[1] > 300:
-                    isBig = True
+            if entropy >= 1.3 and prediction_svm:
 
-                #utils.showImageAndStop("cropped",outs[idx])
-                # COSINE SIMILARITY
-                im_pil = Image.fromarray(outs[idx])
-                vec = detect.get_feature_vector(im_pil, scaler, to_tensor, normalize, layer, resnet18)
+                out_bin_pad = cv2.copyMakeBorder(masks[idx], 50, 50, 50, 50, 0)
+                out_imm_pad = cv2.copyMakeBorder(outs[idx], 50, 50, 50, 50, 0)
 
-                prediction_svm = prediction.check(SVM,vec)
+                corners = rectify.hougesLinesAndCorner(out_bin_pad)
 
-                #print(vec.shape)
-                #best_cos = detect.compare_vectors(vec, feature_vectors)
+                if len(corners) == 4:
+                    local_orientation = rectify.determineOrientation(i)
+                else:
+                    local_orientation = sx
 
-                #if entropy >= 1.3 and ((max_val1 <= 0.96 and max_val2 <= 0.96 and max_val3 <= 0.96) or isBig) and best_cos < 0.71:
-                if entropy >= 1.3 and prediction_svm:
+                # RECTIFICATION
+                warped = 0
+                text, room, M, w, h = rectify.detectKeyPoints(outs[idx], local_orientation)
+                if not np.isscalar(M):
+                    warped = cv2.warpPerspective(outs[idx], M, (w, h))
 
-                    imm = masks[idx]
-                    out_bin_pad = cv2.copyMakeBorder(imm, 50, 50, 50, 50, 0)
-                    out_imm_pad = cv2.copyMakeBorder(outs[idx], 50, 50, 50, 50, 0)
+                if len(corners) == 4 and text == 'quadro':
+                    p = rectify.order_corners(corners)
+                    if p != 0:
+                        ret = rectify.rectify_image(out_imm_pad.shape[0], out_imm_pad.shape[1], out_imm_pad, p)
+                        if not np.isscalar(ret):
+                            warped = ret
+                            text, room, M, w, h = rectify.detectKeyPoints(warped, local_orientation)
+                            if not np.isscalar(M):
+                                warped = cv2.warpPerspective(warped, M, (w, h))
 
-                    corners = rectify.hougesLinesAndCorner(out_bin_pad)
+                if not np.isscalar(warped):
+                    res.append({'not': outs[idx], 'yes': warped})
 
-                    if len(corners) == 4:
-                        local_orientation = rectify.determineOrientation(i)
-                    else:
-                        local_orientation = sx
-
-                    print(local_orientation)
-
-                    # RECTIFICATION
-                    warped = 0
-                    text, tmp, M, w, h = rectify.detectKeyPoints(outs[idx], local_orientation)
-                    if tmp != "":
-                        room = tmp
-                    if not np.isscalar(M):
-                        warped = cv2.warpPerspective(outs[idx], M, (w, h))
-                        # utils.showImageAndStop("warped_sift",warped)  # `e qui che fa il display della imm warpata con sift
-
-                    print("corner: {}".format(len(corners)))
-                    print("text: {}".format(text))
-
-                    if len(corners) == 4 and text == 'quadro':
-                        p = rectify.order_corners(corners)
-                        # se order_corners non dà errore
-                        if p != 0:
-                            ret = rectify.rectify_image_2(out_imm_pad.shape[0], out_imm_pad.shape[1], out_imm_pad, p)
-                            #se rectify_image_2 non dà errore
-                            if not np.isscalar(ret):
-                                warped = ret
-                                # utils.showImageAndStop("warped_corners", warped)
-                                text, tmp, M, w, h = rectify.detectKeyPoints(warped,local_orientation)
-                                if tmp != "":
-                                    room = tmp
-                                if not np.isscalar(M):
-                                    warped = cv2.warpPerspective(warped, M, (w, h))
-                                    # utils.showImageAndStop("warped_sift", warped)  # `e qui che fa il display della imm warpata con sift
-                    if not np.isscalar(warped):
-                        text_n = text.split('-')[0]
-                        path = "./rectifications/" + str(n_frame) + "_" + str(n_quadro) + "_" + text_n + ".jpg"
-                        cv2.imwrite(path, warped)
-                        n_quadro += 1
-
-
-                    dict.append({'texts': text, 'rects': rects[idx]})
-
+                dict.append({'texts': text, 'rects': rects[idx]})
 
         # PERSON
-
         dict = yolo.detect_person(frame, frame_height, frame_width, dict)
         frame = yolo.detect_eyes(frame)
 
         for di in dict:
             utils.drawLabel(di['rects'][2], di['rects'][3], di['rects'][0], di['rects'][1], di['texts'], frame)
 
-        cv2.putText(frame, room, (20, frame_height - 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
-        utils.showImageAndStop("detect", frame)
-        # print(room)
+        utils.display(room, res, frame, src_mask)
 
         k = cv2.waitKey(5) & 0xFF
         if k == ord("q"):
