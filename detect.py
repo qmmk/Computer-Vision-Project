@@ -17,7 +17,7 @@ g_kernel = cv2.getGaborKernel((25, 25), 6.5, np.pi / 4, 10.0, 0.5, 0, ktype=cv2.
 color = (255, 255, 255)
 
 
-def hybrid_edge_detection_V2(frame, no_gabor=False):
+def hybrid_edge_detection(frame, no_gabor=False):
     gray_no_blur = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     gray = cv2.GaussianBlur(gray_no_blur, (5, 5), cv2.BORDER_DEFAULT)

@@ -50,8 +50,7 @@ scaler = transforms.Resize((224, 224))
 normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 to_tensor = transforms.ToTensor()
 
-video = './videos/VIRB0415.MP4'
-cap = cv2.VideoCapture(video)
+cap = cv2.VideoCapture(current_value)
 
 if not cap.isOpened():
     print("Unable to read camera feed")
@@ -61,13 +60,15 @@ frame_height = int(cap.get(4))
 
 out = cv2.VideoWriter('outpy.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30, (frame_width, frame_height))
 
-room = "Stanza generica"
 dirname = 'rectifications'
 
 if not os.path.exists(dirname):
     os.mkdir(dirname)
 
 n_frame = 0
+n_quadro = 0
+tmp = "0"
+res = []
 
 while (True):
     ret, frame = cap.read()
@@ -83,23 +84,18 @@ while (True):
         frame = utils.correct_distortion(frame, frame_height, frame_width)
 
     if ret:
-        n_quadro = 0
         dict = []
-        res = []
+
+        roi = np.zeros_like(frame)
 
         # DETECTION
-        src = detect.hybrid_edge_detection_V2(frame, no_gabor)
+        src = detect.hybrid_edge_detection(frame, no_gabor)
 
         # CONTOURS
         rects, hulls, src_mask = detect.get_contours(src)
 
-        # indici roi senza intersezioni e no contenute
-        listindexfree = utils.shrinkenCountoursList(hulls, frame, rects)
-
         # CROP
         outs, masks, green = detect.cropping_frame(frame, hulls, src_mask)
-
-        outs, rects = utils.reduceListOuts(outs, rects, listindexfree)
 
         # orientamento sx/dx
         sx = True
@@ -128,16 +124,18 @@ while (True):
 
                 corners = rectify.hougesLinesAndCorner(out_bin_pad)
 
+                roi = cv2.drawContours(roi, hulls, idx, (255, 255, 255), -1)
+                roi[roi == 255] = frame[roi == 255]
+
                 if len(corners) == 4:
                     local_orientation = rectify.determineOrientation(i)
                 else:
                     local_orientation = sx
 
                 # RECTIFICATION
-                warped = 0
-                text, room, M, w, h = rectify.detectKeyPoints(outs[idx], local_orientation)
-                if not np.isscalar(M):
-                    warped = cv2.warpPerspective(outs[idx], M, (w, h))
+                text, room, warped = rectify.detectKeyPoints(outs[idx], local_orientation)
+                if room != "0":
+                    tmp = room
 
                 if len(corners) == 4 and text == 'quadro':
                     p = rectify.order_corners(corners)
@@ -145,14 +143,22 @@ while (True):
                         ret = rectify.rectify_image(out_imm_pad.shape[0], out_imm_pad.shape[1], out_imm_pad, p)
                         if not np.isscalar(ret):
                             warped = ret
-                            text, room, M, w, h = rectify.detectKeyPoints(warped, local_orientation)
-                            if not np.isscalar(M):
-                                warped = cv2.warpPerspective(warped, M, (w, h))
+                            text, room, warped = rectify.detectKeyPoints(warped, local_orientation)
+                            if room != "0":
+                                tmp = room
 
                 if not np.isscalar(warped):
-                    res.append({'not': outs[idx], 'yes': warped})
+                    if len(res) == 3:
+                        res.pop(0)
+                    res.append({"before": outs[idx], "after": warped})
+                    utils.write_local(text, n_frame, n_quadro, warped)
 
-                dict.append({'texts': text, 'rects': rects[idx]})
+                check = True
+                if dict is not None:
+                    check = utils.check_inside(text, rects[idx], dict)
+
+                if check:
+                    dict.append({'texts': text, 'rects': rects[idx]})
 
         # PERSON
         dict = yolo.detect_person(frame, frame_height, frame_width, dict)
@@ -161,14 +167,16 @@ while (True):
         for di in dict:
             utils.drawLabel(di['rects'][2], di['rects'][3], di['rects'][0], di['rects'][1], di['texts'], frame)
 
-        utils.display(room, res, frame, src_mask)
+        # RESULT
+        display = utils.display(tmp, frame_height, frame_width, frame, roi, res)
+        utils.showImageAndStop("DISPLAY", display)
 
         k = cv2.waitKey(5) & 0xFF
         if k == ord("q"):
             break
 
         # Write the frame into the file 'output.avi'
-        out.write(frame)
+        out.write(display)
 
         n_frame += 1
 

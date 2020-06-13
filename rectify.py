@@ -3,17 +3,12 @@ import numpy as np
 import scipy.spatial.distance
 import math
 import utils
-from PIL import Image
 
 lista_titoli, lista_immagini, lista_stanze = utils.carica_lista_cvs()
 
 
 def order_corners(corners):
     p = []
-    # p.append((corners[2][0][0], corners[2][0][1]))
-    # p.append((corners[3][0][0], corners[3][0][1]))
-    # p.append((corners[1][0][0], corners[1][0][1]))
-    # p.append((corners[0][0][0], corners[0][0][1]))
     sumx = corners[2][0][0] + corners[3][0][0] + corners[1][0][0] + corners[0][0][0]
     sumy = corners[2][0][1] + corners[3][0][1] + corners[1][0][1] + corners[0][0][1]
     medx = sumx / 4
@@ -160,16 +155,6 @@ def chekcWithSIFT(img1, img2, sx):
         score = 0
         for i in good:
             score += i.distance
-
-        draw_params = dict(matchColor=(0, 255, 0),  # draw matches in green color
-                           singlePointColor=None,
-                           matchesMask=matchesMask,  # draw only inliers
-                           flags=2)
-
-        # img3 = cv2.drawMatches(img1, kp1, img2, kp2, good, None, **draw_params)
-
-        # utils.showImageAndStop('SIFT', img3)
-
         return True, src_pts, dst_pts, good, M
     else:
         return False, 0, 0, 0, 0
@@ -233,15 +218,16 @@ def detectKeyPoints(img_rgb, sx):
         img_gray = cv2.cvtColor(img_rgb, cv2.COLOR_BGR2GRAY)  # togli questa per settare a colori
 
         is_detected, matches, ret_kp1, ret_kp2, score = ORB(img_gray, template)
-        # SIFT(img_gray, template, titolo_quadro)
 
         if is_detected:
             detection_SIFT, src_pts, dst_pts, good, M = chekcWithSIFT(img_gray, template, sx)
             if score < min_score and detection_SIFT:
                 text = "{} - score: {}".format(titolo_quadro, score)
-                return text, stanza, M, template.shape[1], template.shape[0]
-
-    return text, "0", 0, 0, 0
+                if not np.isscalar(M):
+                    warped = cv2.warpPerspective(img_rgb, M, (template.shape[1], template.shape[0]))
+                    return text, stanza, warped
+                return text, stanza, 0
+    return text, "0", 0
 
 
 def hougesLinesAndCorner(image):

@@ -27,8 +27,6 @@ def carica_lista_cvs():
 
 
 def carica_feature_csv():
-    # feature_vectors = []
-    # with open(feature_csv, newline='') as csvfile:
     feature_vectors = genfromtxt(feature_csv, delimiter=',')
     ret = torch.from_numpy(feature_vectors)
     return ret
@@ -49,6 +47,7 @@ def entropy(histogram):
 def drawLabel(w, h, x, y, text, frame):
     cv2.rectangle(frame, (x, y), (x + w, y + h), (120, 0, 0), 2)
     cv2.putText(frame, text, (x + 20, y + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+    return
 
 
 def showImageAndStop(name, im):
@@ -57,66 +56,12 @@ def showImageAndStop(name, im):
     cv2.destroyAllWindows()
 
 
-def contourIntersect(contours, frame):
-    blank = np.zeros(frame.shape[0:2])
-    conts = []
-    intersection = []
-    for i in range(len(contours)):
-        for j in range(len(contours)):
-            if i != j:
-                checkcontours = [contours[i], contours[j]]
-                # Copy each contour into its own image and fill it with '1'
-                image1 = cv2.drawContours(blank.copy(), checkcontours, 0, 1)
-                image2 = cv2.drawContours(blank.copy(), checkcontours, 1, 1)
-
-                mat = cv2.bitwise_and(image1, image2)
-                intersection.append(mat)
-
-        for k in intersection:
-            if k.any():
-                intersection = []
-
-        if len(intersection) != 0:
-            conts.append(i)
-
-    return conts
-
-
-def checkInside(rects, index):
-    new_index = []
-    for i in index:
-        for j in index:
-            if i != j:
-                x1, y1, w, h = rects[i]
-                x2, y2 = x1 + w, y1 + h
-                X, Y, W, H = rects[j]
-                if (x1 < X and X < x2) and (x1 < (X + W) and (X + W) < x2):
-                    if (y1 < Y and Y < y2) and (y1 < (Y + H) and (Y + H) < y2):
-                        new_index.append(j)
-
-    return new_index
-
-
-def reduceListOuts(outs, rects, listindexfree):
-    out_ = []
-    rect_ = []
-    for i in range(len(outs)):
-        if i in listindexfree:
-            out_.append(outs[i])
-            rect_.append(rects[i])
-
-    return out_, rect_
-
-
-def shrinkenCountoursList(hulls, frame, rects):
-    if len(hulls) == 1:
-        listindexfree = [0]
-        return listindexfree
-    listindexfree = contourIntersect(hulls, frame)
-    listindexinside = checkInside(rects, listindexfree)
-    print(listindexfree, listindexinside)
-    listindexfree = set(listindexfree) - set(listindexinside)
-    return listindexfree
+def write_local(text, n_frame, n_quadro, warped):
+    text_n = text.split('-')[0]
+    path = "./rectifications/" + str(n_frame) + "_" + str(n_quadro) + "_" + text_n + ".jpg"
+    cv2.imwrite(path, warped)
+    n_quadro += 1
+    return
 
 
 cam_maker = 'GOPRO'
@@ -174,78 +119,104 @@ def image_resize(image, width=None, height=None, inter=cv2.INTER_AREA):
     return resized
 
 
-def drawMap(map, stanza):
-    stz = 0
-    if stanza != "Stanza generica":
-        try:
-            stz = int(stanza)
-        except ValueError:
-            stz = 0
-    cv2.circle(map, drawPoint(stz), 10, (0, 255, 0), -1)
+def drawMap(stanza):
+    map = cv2.imread(map_frame, cv2.IMREAD_COLOR)
+    cv2.circle(map, drawPoint(stanza), 15, (0, 255, 0), -1)
     return map
 
 
 def drawPoint(index):
     room = {
-        0: (584, 230),
-        1: (985, 514),
-        2: (985, 657),
-        3: (880, 657),
-        4: (773, 657),
-        5: (670, 657),
-        6: (563, 657),
-        7: (465, 657),
-        8: (386, 657),
-        9: (308, 657),
-        10: (236, 657),
-        11: (162, 657),
-        12: (57, 657),
-        13: (52, 512),
-        14: (59, 359),
-        15: (58, 218),
-        16: (78, 61),
-        17: (183, 61),
-        18: (268, 61),
-        19: (215, 258),
-        20: (260, 511),
-        21: (578, 514),
-        22: (827, 512)
+        "0": (584, 230),
+        "1": (985, 514),
+        "2": (985, 657),
+        "3": (880, 657),
+        "4": (773, 657),
+        "5": (670, 657),
+        "6": (563, 657),
+        "7": (465, 657),
+        "8": (386, 657),
+        "9": (308, 657),
+        "10": (236, 657),
+        "11": (162, 657),
+        "12": (57, 657),
+        "13": (52, 512),
+        "14": (59, 359),
+        "15": (58, 218),
+        "16": (78, 61),
+        "17": (183, 61),
+        "18": (268, 61),
+        "19": (215, 258),
+        "20": (260, 511),
+        "21": (578, 514),
+        "22": (827, 512)
     }
     return room.get(index)
 
 
-def display(room, res, frame, src_mask):
-    map = cv2.imread(map_frame, cv2.IMREAD_COLOR)
-    map = drawMap(map, room)
-    vert = np.zeros(shape=(1, 600, 3))
-    for dis in res:
-        comb = np.hstack((cv2.resize(dis['not'], (300, 300)), cv2.resize(dis['yes'], (300, 300))))
-        vert = np.vstack((vert, comb))
+def display(tmp, fh, fw, frame, roi, res):
+    map = drawMap(tmp)
 
-    fig, axes = plt.subplots(2, 2)
-    axes[0][0].imshow(frame)
-    axes[0][0].set_title('Detection')
-    axes[0][1].imshow(src_mask)
-    axes[0][1].set_title('Region of interest')
-    axes[1][0].imshow(map)
-    axes[1][0].set_title('Museum map')
-    axes[1][1].imshow(comb)
-    axes[1][1].set_title('Rectification')
+    display = np.zeros((fh * 3, fw * 3, 3), dtype="uint8")
+    frame = cv2.resize(frame, (fw * 2 - 20, fh * 2 - 20))
+    display[0 + 10:(fh * 2 - 10), 0 + 10:(fw * 2 - 10)] = frame
+    roi = cv2.resize(roi, (roi.shape[1] - 20, roi.shape[0] - 20))
+    display[0 + 10:fh - 10, fw * 2 + 10:fw * 3 - 10] = roi
+    map = cv2.resize(map, (roi.shape[1], roi.shape[0]))
+    display[fh + 10:fh * 2 - 10, fw * 2 + 10:fw * 3 + -10] = map
 
-    for ax in axes:
-        ax[0].spines['top'].set_visible(False)
-        ax[0].spines['left'].set_visible(False)
-        ax[0].spines['bottom'].set_visible(False)
-        ax[0].spines['right'].set_visible(False)
-        ax[0].set_xticks([])
-        ax[0].set_yticks([])
+    for idx, r in enumerate(res):
+        a = cv2.resize(res[idx]['before'], (roi.shape[1], roi.shape[0]))
+        b = cv2.resize(res[idx]['after'], (roi.shape[1], roi.shape[0]))
+        comb = np.hstack((a, b))
+        comb = cv2.resize(comb, (roi.shape[1], roi.shape[0]))
+        display[fh * 2 + 10:fh * 3 - 10, (fw * idx) + 10:(fw * (idx + 1)) - 10] = comb
 
-        ax[1].spines['top'].set_visible(False)
-        ax[1].spines['left'].set_visible(False)
-        ax[1].spines['bottom'].set_visible(False)
-        ax[1].spines['right'].set_visible(False)
-        ax[1].set_xticks([])
-        ax[1].set_yticks([])
+    display = cv2.resize(display, (1080, 720))
+    return display
 
-    plt.show()
-    return
+
+def check_inside(text, rects, dict):
+    index = []
+    res = True
+    for idx, d in enumerate(dict):
+        # SE il nuovo quadro è contenuto in uno in dict che ha nome -quadro-
+        # e il nuovo quadro ha nome -segnato-
+        # ALLORA elimino il quadro in dict, ALTRIMENTI non aggiungo il nuovo quadro
+        if isInside(rects, d['rects']) and d['texts'] == "quadro":
+            if text != "quadro":
+                index.append(idx)
+            else:
+                res = False
+
+        # SE il nuovo quadro contiene uno in dict che ha nome -segnato-
+        # e il nuovo quadro ha come nome -quadro-
+        # ALLORA non lo aggiungo a dict, ALTRIMENTI tengo quello esterno
+        if isOutside(rects, d['rects']) and text == "quadro":
+            if d['texts'] != "quadro":
+                res = False
+            else:
+                index.append(idx)
+
+    for i in index:
+        dict.pop(i)
+
+    return res
+
+
+def isInside(new, rects):
+    x1, y1, w, h = rects
+    x2, y2 = x1 + w, y1 + h
+    X, Y, W, H = new
+    if (x1 < X < x2) and (x1 < (X + W) < x2) and (y1 < Y < y2) and (y1 < (Y + H) < y2):
+        return True
+    return False
+
+
+def isOutside(new, rects):
+    x1, y1, w, h = new
+    x2, y2 = x1 + w, y1 + h
+    X, Y, W, H = rects
+    if (x1 < X < x2) and (x1 < (X + W) < x2) and (y1 < Y < y2) and (y1 < (Y + H) < y2):
+        return True
+    return False
