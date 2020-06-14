@@ -160,20 +160,64 @@ def display(tmp, fh, fw, frame, roi, res):
     display = np.zeros((fh * 3, fw * 3, 3), dtype="uint8")
     frame = cv2.resize(frame, (fw * 2 - 20, fh * 2 - 20))
     display[0 + 10:(fh * 2 - 10), 0 + 10:(fw * 2 - 10)] = frame
-    roi = cv2.resize(roi, (roi.shape[1] - 20, roi.shape[0] - 20))
-    display[0 + 10:fh - 10, fw * 2 + 10:fw * 3 - 10] = roi
-    map = cv2.resize(map, (roi.shape[1], roi.shape[0]))
-    display[fh + 10:fh * 2 - 10, fw * 2 + 10:fw * 3 + -10] = map
+    roi = cv2.resize(roi, (fw-20, fh-20))
+    display[0 + 10:fh - 10, (fw * 2 + 10):(fw * 3 - 10)] = roi
+    map = cv2.resize(map, (fw-20, fh-20))
+    display[fh + 10:(fh * 2 - 10), (fw * 2 + 10):(fw * 3 + -10)] = map
 
     for idx, r in enumerate(res):
-        a = cv2.resize(res[idx]['before'], (roi.shape[1], roi.shape[0]))
-        b = cv2.resize(res[idx]['after'], (roi.shape[1], roi.shape[0]))
+        a = res[idx]['before']
+        b = res[idx]['after']
+        a,b = stack(a,b)
         comb = np.hstack((a, b))
-        comb = cv2.resize(comb, (roi.shape[1], roi.shape[0]))
+
+        comb = image_resize(comb, width=fw-20)
+        h,w,_ = comb.shape
+
+        fxh = (fh-20) / h
+        fxw = (fw-20) / w
+
+        if fxh > 1 and fxw > 1:
+            fxh =  h / (fh - 20)
+            fxw = w / (fw - 20)
+
+        if fxw>fxh:
+
+            comb = cv2.resize(comb, None, fx=fxh, fy=fxh)
+            h, w, _ = comb.shape
+            t = ((fw-20)-w) % 2
+            comb = cv2.copyMakeBorder(comb, 0, 0, int(((fw-20)-w) / 2), int(((fw-20)-w) / 2) + int(t), 0)
+
+        else:
+            comb = cv2.resize(comb, None, fx=fxw, fy=fxw)
+            h, w, _ = comb.shape
+            t = ((fh - 20) - h) % 2
+            comb = cv2.copyMakeBorder(comb, int(((fh - 20) - h) / 2), int(((fh - 20) - h) / 2) + int(t), 0, 0, 0)
+
         display[fh * 2 + 10:fh * 3 - 10, (fw * idx) + 10:(fw * (idx + 1)) - 10] = comb
 
-    display = cv2.resize(display, (1080, 720))
+    display = cv2.resize(display, (1920, 1080))
     return display
+
+def stack(img1,img2):
+    h1, w1 ,_ = img1.shape
+    h2, w2 ,_= img2.shape
+
+
+    if w1 > w2:
+        t = (w1-w2)%2
+        img2 = cv2.copyMakeBorder(img2,0,0,int((w1-w2)/2),int((w1-w2)/2)+t,0)
+    if w1 < w2:
+        t = (w2 -w1)%2
+        img1 = cv2.copyMakeBorder(img1,0,0,int((w2-w1)/2),int((w2-w1)/2)+t,0)
+    if h1 > h2:
+        t = (h1-h2)%2
+        img2 = cv2.copyMakeBorder(img2,int((h1-h2)/2),int((h1-h2)/2)+t,0,0,0)
+    if h1 < h2:
+        t = (h2-h1)%2
+        img1 = cv2.copyMakeBorder(img1,int((h2-h1)/2),int((h2-h1)/2)+t,0,0,0)
+
+    return img1,img2
 
 
 def check_inside(text, rects, dict):
