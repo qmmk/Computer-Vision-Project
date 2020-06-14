@@ -222,7 +222,7 @@ def detectKeyPoints(img_rgb, sx):
         if is_detected:
             detection_SIFT, src_pts, dst_pts, good, M = chekcWithSIFT(img_gray, template, sx)
             if score < min_score and detection_SIFT:
-                text = "{} - score: {}".format(titolo_quadro, score)
+                text = "{} - score: {}".format(titolo_quadro, int(score))
                 if not np.isscalar(M):
                     warped = cv2.warpPerspective(img_rgb, M, (template.shape[1], template.shape[0]))
                     return text, stanza, warped

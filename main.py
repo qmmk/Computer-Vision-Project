@@ -50,7 +50,10 @@ scaler = transforms.Resize((224, 224))
 normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 to_tensor = transforms.ToTensor()
 
-cap = cv2.VideoCapture(current_value)
+video1 = "./videos/IMG_4082.MOV"
+video = "./videos/GOPR5820.MP4"
+video2 = "./videos/20180206_111931.mp4"
+cap = cv2.VideoCapture(video2)
 
 if not cap.isOpened():
     print("Unable to read camera feed")
