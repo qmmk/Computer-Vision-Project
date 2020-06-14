@@ -46,7 +46,19 @@ def entropy(histogram):
 
 def drawLabel(w, h, x, y, text, frame):
     cv2.rectangle(frame, (x, y), (x + w, y + h), (120, 0, 0), 2)
-    cv2.putText(frame, text, (x + 20, y + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+    l = 0
+    testo = text.split()
+    fin = ''
+    for letter in testo:
+        if l == 4:
+            fin += '\n'
+            l=0
+        l+=1
+        fin = fin + letter + " "
+
+    for i, line in enumerate(fin.split('\n')):
+        y = y + 20
+        cv2.putText(frame, line, (x + 20, y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
     return
 
 
