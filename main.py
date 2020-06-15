@@ -77,8 +77,6 @@ res = []
 while (True):
     ret, frame = cap.read()
 
-    print(frame.shape)
-
     if frame.shape[0] > frame.shape[1]:
         frame = utils.resize_output(frame)
 
