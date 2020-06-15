@@ -159,7 +159,6 @@ def chekcWithSIFT(img1, img2, sx):
     else:
         return False, 0, 0, 0, 0
 
-
 def ORB(im1, im2):
     # Initiate SIFT detector
     orb = cv2.ORB_create()
@@ -197,13 +196,12 @@ def ORB(im1, im2):
 
     if len(good) >= ngood:
         score = sum(x.distance for x in good[:ngood])
-        if score < 330:  # 350
+        if score < 400:  # 350
             return True, good, retkp1, retkp2, score
         else:
             return False, 0, 0, 0, 100000
     else:
         return False, 0, 0, 0, 100000
-
 
 def detectKeyPoints(img_rgb, sx):
     min_score = 100000  # 100000
@@ -222,7 +220,6 @@ def detectKeyPoints(img_rgb, sx):
         img_gray = cv2.cvtColor(img_rgb, cv2.COLOR_BGR2GRAY)  # togli questa per settare a colori
 
         detection_ORB, matches, ret_kp1, ret_kp2, score = ORB(img_gray, template)
-
         if detection_ORB:
             detection_SIFT, src_pts, dst_pts, good, M = chekcWithSIFT(img_gray, template, sx)
             if score < min_score and detection_SIFT:
@@ -236,8 +233,8 @@ def detectKeyPoints(img_rgb, sx):
 
     if is_detected:
         warped = cv2.warpPerspective(img_rgb, final_mat, temp)
-        return text, final_room, warped
-    return text, "0", 0
+        return text, final_room, warped, min_score
+    return text, "0", 0, 100000
 
 
 def hougesLinesAndCorner(image):

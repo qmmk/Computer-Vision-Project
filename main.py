@@ -10,6 +10,7 @@ import torchvision.models as models
 from torchvision import transforms
 from PIL import Image
 import prediction
+import skvideo.io
 
 SVM = prediction.setup()
 
@@ -53,7 +54,7 @@ to_tensor = transforms.ToTensor()
 video1 = "./videos/IMG_4082.MOV"
 video = "./videos/GOPR5820.MP4"
 video2 = "./videos/20180206_111931.mp4"
-cap = cv2.VideoCapture(video2)
+cap = cv2.VideoCapture(current_value)
 
 if not cap.isOpened():
     print("Unable to read camera feed")
@@ -76,13 +77,10 @@ res = []
 while (True):
     ret, frame = cap.read()
 
+    print(frame.shape)
 
     if frame.shape[0] > frame.shape[1]:
-        if frame.shape[0] > 1080:
-            frame = utils.image_resize(frame, height=1080)
-    elif frame.shape[1] > frame.shape[0]:
-        if frame.shape[1] > 1920:
-            frame = utils.image_resize(frame, width=1920)
+        frame = utils.resize_output(frame)
 
     if rectify_image:
         frame = utils.correct_distortion(frame, frame_height, frame_width)
@@ -114,7 +112,6 @@ while (True):
         for idx in range(len(outs)):
             hist = utils.hist_compute_orb(green[idx])
             entropy = utils.entropy(hist)
-
             # COSINE SIMILARITY
             im_pil = Image.fromarray(outs[idx])
             vec = detect.get_feature_vector(im_pil, scaler, to_tensor, normalize, layer, resnet18)
@@ -137,17 +134,17 @@ while (True):
                     local_orientation = sx
 
                 # RECTIFICATION
-                text, room, warped = rectify.detectKeyPoints(outs[idx], local_orientation)
+                text, room, warped, score = rectify.detectKeyPoints(outs[idx], local_orientation)
                 if room != "0":
                     tmp = room
 
-                if len(corners) == 4 and text == 'quadro':
+                if len(corners) == 4 and score > 300:
                     p = rectify.order_corners(corners)
                     if p != 0:
                         ret = rectify.rectify_image(out_imm_pad.shape[0], out_imm_pad.shape[1], out_imm_pad, p)
                         if not np.isscalar(ret):
                             warped = ret
-                            text, room, warped = rectify.detectKeyPoints(warped, local_orientation)
+                            text, room, warped, score = rectify.detectKeyPoints(warped, local_orientation)
                             if room != "0":
                                 tmp = room
 

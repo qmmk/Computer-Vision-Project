@@ -4,6 +4,7 @@ import csv
 import lensfunpy
 from numpy import genfromtxt
 import torch
+from scipy import ndimage
 
 lista_cvs = './dataset/data.csv'
 feature_csv = './content/feature_vectors.csv'
@@ -169,6 +170,7 @@ def display(tmp, fh, fw, frame, roi, res):
     map = drawMap(tmp)
 
     display = np.zeros((fh * 3, fw * 3, 3), dtype="uint8")
+
     frame = cv2.resize(frame, (fw * 2 - 20, fh * 2 - 20))
     display[0 + 10:(fh * 2 - 10), 0 + 10:(fw * 2 - 10)] = frame
     roi = cv2.resize(roi, (fw - 20, fh - 20))
@@ -183,7 +185,7 @@ def display(tmp, fh, fw, frame, roi, res):
         comb = np.hstack((a, b))
 
         comb = image_resize(comb, width=fw - 20)
-        h, w, _ = comb.shape
+        h, w,_  = comb.shape
 
         fxh = (fh - 20) / h
         fxw = (fw - 20) / w
@@ -195,13 +197,13 @@ def display(tmp, fh, fw, frame, roi, res):
         if fxw > fxh:
 
             comb = cv2.resize(comb, None, fx=fxh, fy=fxh)
-            h, w, _ = comb.shape
+            h, w,_  = comb.shape
             t = ((fw - 20) - w) % 2
             comb = cv2.copyMakeBorder(comb, 0, 0, int(((fw - 20) - w) / 2), int(((fw - 20) - w) / 2) + int(t), 0)
 
         else:
             comb = cv2.resize(comb, None, fx=fxw, fy=fxw)
-            h, w, _ = comb.shape
+            h, w,_  = comb.shape
             t = ((fh - 20) - h) % 2
             comb = cv2.copyMakeBorder(comb, int(((fh - 20) - h) / 2), int(((fh - 20) - h) / 2) + int(t), 0, 0, 0)
 
@@ -277,3 +279,73 @@ def isOutside(new, rects):
     if (x1 < X < x2) and (x1 < (X + W) < x2) and (y1 < Y < y2) and (y1 < (Y + H) < y2):
         return True
     return False
+
+def rotate(frame):
+    # rotation angle in degree
+    frame = ndimage.rotate(frame, 270)
+    '''
+    H = 1080
+    W = 1920
+    frame_width = frame.shape[0]
+    frame_height = frame.shape[1]
+    fxh = H / frame_width
+    fxw = W / frame_height
+
+    if fxh > 1 and fxw > 1:
+        fxh = frame_width / H
+        fxw = frameheight / W
+
+    if fxw > fxh:
+
+        frame = cv2.resize(frame, None, fx=fxh, fy=fxh)
+        h1, w1,_ = frame.shape
+        t = (W - w1) % 2
+        frame = cv2.copyMakeBorder(frame, 0, 0, int((W - w1) / 2), int((W - w1) / 2) + int(t), 0)
+
+    else:
+        if fxh == 1 and fxw == 1 and rotate:
+            frame = cv2.resize(frame, None, fx=fxh, fy=fxh)
+            w1, h1,_ = frame.shape
+            t = (W - w1) % 2
+            frame = cv2.copyMakeBorder(frame, 0, 0, int((W - w1) / 2), int((W - w1) / 2) + int(t), 0)
+
+        else:
+            frame = cv2.resize(frame, None, fx=fxw, fy=fxw)
+            h1, w1,_ = frame.shape
+            t = (H - h1) % 2
+            frame = cv2.copyMakeBorder(frame, int((H - h1) / 2), int((H - h1) / 2) + int(t), 0, 0, 0)
+    '''
+    return frame
+
+def resize_output(frame):
+    H = 1080
+    W = 1920
+    frame_width = frame.shape[0]
+    frame_height = frame.shape[1]
+    fxh = H / frame_width
+    fxw = W / frame_height
+
+    if fxh > 1 and fxw > 1:
+        fxh = frame_width / H
+        fxw = frame_height / W
+
+    if fxw > fxh:
+
+        frame = cv2.resize(frame, None, fx=fxh, fy=fxh)
+        h1, w1,_ = frame.shape
+        t = (W - w1) % 2
+        frame = cv2.copyMakeBorder(frame, 0, 0, int((W - w1) / 2), int((W - w1) / 2) + int(t), 0)
+
+    else:
+        if fxh == 1 and fxw == 1 and rotate:
+            frame = cv2.resize(frame, None, fx=fxh, fy=fxh)
+            w1, h1,_ = frame.shape
+            t = (W - w1) % 2
+            frame = cv2.copyMakeBorder(frame, 0, 0, int((W - w1) / 2), int((W - w1) / 2) + int(t), 0)
+
+        else:
+            frame = cv2.resize(frame, None, fx=fxw, fy=fxw)
+            h1, w1,_ = frame.shape
+            t = (H - h1) % 2
+            frame = cv2.copyMakeBorder(frame, int((H - h1) / 2), int((H - h1) / 2) + int(t), 0, 0, 0)
+    return frame
