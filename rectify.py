@@ -208,6 +208,10 @@ def ORB(im1, im2):
 def detectKeyPoints(img_rgb, sx):
     min_score = 100000  # 100000
     text = "quadro"
+    final_mat = 0
+    is_detected = False
+    final_room = "0"
+    temp = 0
 
     for it in range(len(lista_immagini) - 1):
         # Read the main image
@@ -217,16 +221,22 @@ def detectKeyPoints(img_rgb, sx):
         template = cv2.imread(immage_template, 0)  # 1 a colori
         img_gray = cv2.cvtColor(img_rgb, cv2.COLOR_BGR2GRAY)  # togli questa per settare a colori
 
-        is_detected, matches, ret_kp1, ret_kp2, score = ORB(img_gray, template)
+        detection_ORB, matches, ret_kp1, ret_kp2, score = ORB(img_gray, template)
 
-        if is_detected:
+        if detection_ORB:
             detection_SIFT, src_pts, dst_pts, good, M = chekcWithSIFT(img_gray, template, sx)
             if score < min_score and detection_SIFT:
+                min_score = score
+                final_room = stanza
                 text = "{} - score: {}".format(titolo_quadro, int(score))
                 if not np.isscalar(M):
-                    warped = cv2.warpPerspective(img_rgb, M, (template.shape[1], template.shape[0]))
-                    return text, stanza, warped
-                return text, stanza, 0
+                    final_mat = M
+                    is_detected = True
+                    temp = (template.shape[1], template.shape[0])
+
+    if is_detected:
+        warped = cv2.warpPerspective(img_rgb, final_mat, temp)
+        return text, final_room, warped
     return text, "0", 0
 
 

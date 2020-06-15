@@ -53,7 +53,7 @@ to_tensor = transforms.ToTensor()
 video1 = "./videos/IMG_4082.MOV"
 video = "./videos/GOPR5820.MP4"
 video2 = "./videos/20180206_111931.mp4"
-cap = cv2.VideoCapture(current_value)
+cap = cv2.VideoCapture(video2)
 
 if not cap.isOpened():
     print("Unable to read camera feed")
