@@ -196,7 +196,7 @@ def ORB(im1, im2):
 
     if len(good) >= ngood:
         score = sum(x.distance for x in good[:ngood])
-        if score < 400:  # 350
+        if score < 350:  # 350
             return True, good, retkp1, retkp2, score
         else:
             return False, 0, 0, 0, 100000

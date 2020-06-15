@@ -10,7 +10,6 @@ import torchvision.models as models
 from torchvision import transforms
 from PIL import Image
 import prediction
-import skvideo.io
 
 SVM = prediction.setup()
 
@@ -36,8 +35,8 @@ for current_argument, current_value in arguments:
         print("Enabling no gabor")
         no_gabor = False
     elif current_argument in ("-i", "--input"):
-        if current_value is None:
-            exit(2)
+        if current_value is not None:
+            video = current_value
     elif current_argument in ("-r", "--rectify"):
         print("Enabling Rectify image")
         rectify_image = True
@@ -51,10 +50,8 @@ scaler = transforms.Resize((224, 224))
 normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 to_tensor = transforms.ToTensor()
 
-video1 = "./videos/IMG_4082.MOV"
-video = "./videos/GOPR5820.MP4"
-video2 = "./videos/20180206_111931.mp4"
-cap = cv2.VideoCapture(current_value)
+
+cap = cv2.VideoCapture(video)
 
 if not cap.isOpened():
     print("Unable to read camera feed")
@@ -136,7 +133,7 @@ while (True):
                 if room != "0":
                     tmp = room
 
-                if len(corners) == 4 and score > 300:
+                if len(corners) == 4 and score > 260:
                     p = rectify.order_corners(corners)
                     if p != 0:
                         ret = rectify.rectify_image(out_imm_pad.shape[0], out_imm_pad.shape[1], out_imm_pad, p)
