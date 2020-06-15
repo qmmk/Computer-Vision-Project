@@ -257,7 +257,7 @@ def check_inside(text, rects, dict):
             elif isOutside(rects, d['rects']) and score1[0] > score2[0]:
                 res = False
 
-    for i in index:
+    for i in reversed(index):
         dict.pop(i)
 
     return res
