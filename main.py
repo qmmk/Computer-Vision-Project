@@ -50,8 +50,7 @@ scaler = transforms.Resize((224, 224))
 normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 to_tensor = transforms.ToTensor()
 
-video1 = "./videos/GOPR5827.MP4"
-cap = cv2.VideoCapture(video1)
+cap = cv2.VideoCapture(video)
 
 if not cap.isOpened():
     print("Unable to read camera feed")
@@ -78,6 +77,7 @@ while (True):
     if frame.shape[0] > frame.shape[1]:
         frame = utils.rotate(frame)
     """
+
     if rectify_image:
         frame = utils.correct_distortion(frame, frame_height, frame_width)
 
@@ -164,17 +164,15 @@ while (True):
 
         # PERSON
         dict = yolo.detect_person(frame, frame_height, frame_width, dict)
-        frame = yolo.detect_eyes(frame)
 
+        # RESULT
         for di in dict:
             utils.drawLabel(di['rects'][2], di['rects'][3], di['rects'][0], di['rects'][1], di['texts'], frame)
 
-        # RESULT
         frame = utils.resize_output(frame)
         roi = utils.resize_output(roi)
 
         display = utils.display(tmp, 1080, 1920, frame, roi, res)
-        # utils.showImageAndStop("DISPLAY", display)
 
         k = cv2.waitKey(5) & 0xFF
         if k == ord("q"):

@@ -1,18 +1,11 @@
 import cv2
-import utils
 import numpy as np
-import dlib
 
 # Load Yolo
 config = "./content/yolov3.cfg"
 weights = "./content/yolov3.weights"
 names = "./content/coco.names"
-face_dat = "./content/shape_predictor_68_face_landmarks.dat"
 net = cv2.dnn.readNet(weights, config)
-
-# Face
-detector = dlib.get_frontal_face_detector()
-predictor = dlib.shape_predictor(face_dat)
 
 with open(names, "r") as f:
     classes = [line.strip() for line in f.readlines()]
@@ -71,22 +64,3 @@ def check_inside(person, rects):
         if (x1 < X < x2) and (x1 < (X + W) < x2) and (y1 < Y < y2) and (y1 < (Y + H) < y2):
             return False
     return True
-
-
-def midpoint(p1, p2):
-    return int((p1.x + p2.x) / 2), int((p1.y + p2.y) / 2)
-
-
-def detect_eyes(frame):
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    faces = detector(gray)
-
-    for face in faces:
-        landmarks = predictor(gray, face)
-
-        dx = midpoint(landmarks.part(37), landmarks.part(40))
-        sx = midpoint(landmarks.part(43), landmarks.part(46))
-        # cv2.circle(frame, dx, 5, (0, 255, 0), -1)
-        # cv2.circle(frame, sx, 5, (0, 255, 0), -1)
-
-    return frame

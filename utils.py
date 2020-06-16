@@ -52,20 +52,14 @@ def drawLabel(w, h, x, y, text, frame):
     for letter in testo:
         if l == 4:
             fin += '\n'
-            l=0
-        l+=1
+            l = 0
+        l += 1
         fin = fin + letter + " "
 
     for i, line in enumerate(fin.split('\n')):
         y = y + 20
         cv2.putText(frame, line, (x + 20, y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
     return
-
-
-def showImageAndStop(name, im):
-    cv2.imshow(name, im)
-    cv2.waitKey()
-    cv2.destroyAllWindows()
 
 
 def write_local(text, n_frame, n_quadro, warped):
@@ -185,7 +179,7 @@ def display(tmp, fh, fw, frame, roi, res):
         comb = np.hstack((a, b))
 
         comb = image_resize(comb, width=fw - 20)
-        h, w,_  = comb.shape
+        h, w, _ = comb.shape
 
         fxh = (fh - 20) / h
         fxw = (fw - 20) / w
@@ -197,13 +191,13 @@ def display(tmp, fh, fw, frame, roi, res):
         if fxw > fxh:
 
             comb = cv2.resize(comb, None, fx=fxh, fy=fxh)
-            h, w,_  = comb.shape
+            h, w, _ = comb.shape
             t = ((fw - 20) - w) % 2
             comb = cv2.copyMakeBorder(comb, 0, 0, int(((fw - 20) - w) / 2), int(((fw - 20) - w) / 2) + int(t), 0)
 
         else:
             comb = cv2.resize(comb, None, fx=fxw, fy=fxw)
-            h, w,_  = comb.shape
+            h, w, _ = comb.shape
             t = ((fh - 20) - h) % 2
             comb = cv2.copyMakeBorder(comb, int(((fh - 20) - h) / 2), int(((fh - 20) - h) / 2) + int(t), 0, 0, 0)
 
@@ -280,42 +274,12 @@ def isOutside(new, rects):
         return True
     return False
 
+
 def rotate(frame):
     # rotation angle in degree
     frame = ndimage.rotate(frame, 270)
-    '''
-    H = 1080
-    W = 1920
-    frame_width = frame.shape[0]
-    frame_height = frame.shape[1]
-    fxh = H / frame_width
-    fxw = W / frame_height
-
-    if fxh > 1 and fxw > 1:
-        fxh = frame_width / H
-        fxw = frameheight / W
-
-    if fxw > fxh:
-
-        frame = cv2.resize(frame, None, fx=fxh, fy=fxh)
-        h1, w1,_ = frame.shape
-        t = (W - w1) % 2
-        frame = cv2.copyMakeBorder(frame, 0, 0, int((W - w1) / 2), int((W - w1) / 2) + int(t), 0)
-
-    else:
-        if fxh == 1 and fxw == 1 and rotate:
-            frame = cv2.resize(frame, None, fx=fxh, fy=fxh)
-            w1, h1,_ = frame.shape
-            t = (W - w1) % 2
-            frame = cv2.copyMakeBorder(frame, 0, 0, int((W - w1) / 2), int((W - w1) / 2) + int(t), 0)
-
-        else:
-            frame = cv2.resize(frame, None, fx=fxw, fy=fxw)
-            h1, w1,_ = frame.shape
-            t = (H - h1) % 2
-            frame = cv2.copyMakeBorder(frame, int((H - h1) / 2), int((H - h1) / 2) + int(t), 0, 0, 0)
-    '''
     return frame
+
 
 def resize_output(frame):
     H = 1080
@@ -332,20 +296,20 @@ def resize_output(frame):
     if fxw > fxh:
 
         frame = cv2.resize(frame, None, fx=fxh, fy=fxh)
-        h1, w1,_ = frame.shape
+        h1, w1, _ = frame.shape
         t = (W - w1) % 2
         frame = cv2.copyMakeBorder(frame, 0, 0, int((W - w1) / 2), int((W - w1) / 2) + int(t), 0)
 
     else:
         if fxh == 1 and fxw == 1 and rotate:
             frame = cv2.resize(frame, None, fx=fxh, fy=fxh)
-            w1, h1,_ = frame.shape
+            w1, h1, _ = frame.shape
             t = (W - w1) % 2
             frame = cv2.copyMakeBorder(frame, 0, 0, int((W - w1) / 2), int((W - w1) / 2) + int(t), 0)
 
         else:
             frame = cv2.resize(frame, None, fx=fxw, fy=fxw)
-            h1, w1,_ = frame.shape
+            h1, w1, _ = frame.shape
             t = (H - h1) % 2
             frame = cv2.copyMakeBorder(frame, int((H - h1) / 2), int((H - h1) / 2) + int(t), 0, 0, 0)
     return frame

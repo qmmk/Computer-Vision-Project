@@ -291,7 +291,6 @@ def determineOrientation(im):
             lista_punti_y.append(y)
             cv2.circle(blank, (x, y), 3, 255, -1)
 
-
     if len(lista_punti_x) != 4 or len(lista_punti_y) != 4:
         return True, False
 
