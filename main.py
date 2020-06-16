@@ -74,9 +74,10 @@ res = []
 while (True):
     ret, frame = cap.read()
 
+    """
     if frame.shape[0] > frame.shape[1]:
-        frame = utils.resize_output(frame)
-
+        frame = utils.rotate(frame)
+    """
     if rectify_image:
         frame = utils.correct_distortion(frame, frame_height, frame_width)
 
@@ -164,7 +165,10 @@ while (True):
             utils.drawLabel(di['rects'][2], di['rects'][3], di['rects'][0], di['rects'][1], di['texts'], frame)
 
         # RESULT
-        display = utils.display(tmp, frame_height, frame_width, frame, roi, res)
+        frame = utils.resize_output(frame)
+        roi = utils.resize_output(roi)
+
+        display = utils.display(tmp, 1080, 1920, frame, roi, res)
         utils.showImageAndStop("DISPLAY", display)
 
         k = cv2.waitKey(5) & 0xFF
