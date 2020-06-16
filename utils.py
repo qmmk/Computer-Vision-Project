@@ -190,7 +190,9 @@ def display(tmp, fh, fw, frame, roi, res):
         fxh = (fh - 20) / h
         fxw = (fw - 20) / w
 
-
+        if fxh > 1 and fxw > 1:
+            fxh = h / (fh - 20)
+            fxw = w / (fw - 20)
 
         if fxw > fxh:
 
@@ -281,6 +283,38 @@ def isOutside(new, rects):
 def rotate(frame):
     # rotation angle in degree
     frame = ndimage.rotate(frame, 270)
+    '''
+    H = 1080
+    W = 1920
+    frame_width = frame.shape[0]
+    frame_height = frame.shape[1]
+    fxh = H / frame_width
+    fxw = W / frame_height
+
+    if fxh > 1 and fxw > 1:
+        fxh = frame_width / H
+        fxw = frameheight / W
+
+    if fxw > fxh:
+
+        frame = cv2.resize(frame, None, fx=fxh, fy=fxh)
+        h1, w1,_ = frame.shape
+        t = (W - w1) % 2
+        frame = cv2.copyMakeBorder(frame, 0, 0, int((W - w1) / 2), int((W - w1) / 2) + int(t), 0)
+
+    else:
+        if fxh == 1 and fxw == 1 and rotate:
+            frame = cv2.resize(frame, None, fx=fxh, fy=fxh)
+            w1, h1,_ = frame.shape
+            t = (W - w1) % 2
+            frame = cv2.copyMakeBorder(frame, 0, 0, int((W - w1) / 2), int((W - w1) / 2) + int(t), 0)
+
+        else:
+            frame = cv2.resize(frame, None, fx=fxw, fy=fxw)
+            h1, w1,_ = frame.shape
+            t = (H - h1) % 2
+            frame = cv2.copyMakeBorder(frame, int((H - h1) / 2), int((H - h1) / 2) + int(t), 0, 0, 0)
+    '''
     return frame
 
 def resize_output(frame):
@@ -291,6 +325,10 @@ def resize_output(frame):
     fxh = H / frame_width
     fxw = W / frame_height
 
+    if fxh > 1 and fxw > 1:
+        fxh = frame_width / H
+        fxw = frame_height / W
+
     if fxw > fxh:
 
         frame = cv2.resize(frame, None, fx=fxh, fy=fxh)
@@ -299,8 +337,15 @@ def resize_output(frame):
         frame = cv2.copyMakeBorder(frame, 0, 0, int((W - w1) / 2), int((W - w1) / 2) + int(t), 0)
 
     else:
-        frame = cv2.resize(frame, None, fx=fxw, fy=fxw)
-        h1, w1,_ = frame.shape
-        t = (H - h1) % 2
-        frame = cv2.copyMakeBorder(frame, int((H - h1) / 2), int((H - h1) / 2) + int(t), 0, 0, 0)
+        if fxh == 1 and fxw == 1 and rotate:
+            frame = cv2.resize(frame, None, fx=fxh, fy=fxh)
+            w1, h1,_ = frame.shape
+            t = (W - w1) % 2
+            frame = cv2.copyMakeBorder(frame, 0, 0, int((W - w1) / 2), int((W - w1) / 2) + int(t), 0)
+
+        else:
+            frame = cv2.resize(frame, None, fx=fxw, fy=fxw)
+            h1, w1,_ = frame.shape
+            t = (H - h1) % 2
+            frame = cv2.copyMakeBorder(frame, int((H - h1) / 2), int((H - h1) / 2) + int(t), 0, 0, 0)
     return frame

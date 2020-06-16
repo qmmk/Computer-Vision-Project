@@ -50,8 +50,8 @@ scaler = transforms.Resize((224, 224))
 normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 to_tensor = transforms.ToTensor()
 
-
-cap = cv2.VideoCapture(video)
+video1 = "./videos/GOPR5827.MP4"
+cap = cv2.VideoCapture(video1)
 
 if not cap.isOpened():
     print("Unable to read camera feed")
@@ -145,10 +145,15 @@ while (True):
                                 tmp = room
 
                 if not np.isscalar(warped):
-                    if len(res) == 3:
-                        res.pop(0)
-                    res.append({"before": outs[idx], "after": warped})
-                    utils.write_local(text, n_frame, n_quadro, warped)
+                    im_warped = Image.fromarray(warped)
+                    vec_warped = detect.get_feature_vector(im_warped, scaler, to_tensor, normalize, layer, resnet18)
+
+                    prediction_warped = prediction.check(SVM, vec_warped)
+                    if prediction_warped:
+                        if len(res) == 3:
+                            res.pop(0)
+                        res.append({"before": outs[idx], "after": warped})
+                        utils.write_local(text, n_frame, n_quadro, warped)
 
                 check = True
                 if dict is not None:
@@ -169,7 +174,7 @@ while (True):
         roi = utils.resize_output(roi)
 
         display = utils.display(tmp, 1080, 1920, frame, roi, res)
-        utils.showImageAndStop("DISPLAY", display)
+        # utils.showImageAndStop("DISPLAY", display)
 
         k = cv2.waitKey(5) & 0xFF
         if k == ord("q"):

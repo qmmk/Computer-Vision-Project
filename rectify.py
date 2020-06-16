@@ -107,7 +107,7 @@ def rectify_image(rows, cols, img, p):
         dst = cv2.warpPerspective(img, M, (W, H))
 
     except Exception:
-        print("error in the formula")
+        print("Error in the formula")
         return 0
 
     return dst
@@ -159,6 +159,7 @@ def chekcWithSIFT(img1, img2, sx):
     else:
         return False, 0, 0, 0, 0
 
+
 def ORB(im1, im2):
     # Initiate SIFT detector
     orb = cv2.ORB_create()
@@ -202,6 +203,7 @@ def ORB(im1, im2):
             return False, 0, 0, 0, 100000
     else:
         return False, 0, 0, 0, 100000
+
 
 def detectKeyPoints(img_rgb, sx):
     min_score = 100000  # 100000
