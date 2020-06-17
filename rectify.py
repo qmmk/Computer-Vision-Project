@@ -33,7 +33,6 @@ def order_corners(corners):
         p.append(tl)
         p.append(tr)
     except UnboundLocalError:
-        print("The corner are wrong")
         return 0
 
     return p

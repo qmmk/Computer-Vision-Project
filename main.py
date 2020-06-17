@@ -51,6 +51,7 @@ normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 
 to_tensor = transforms.ToTensor()
 
 cap = cv2.VideoCapture(video)
+total_frame = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
 if not cap.isOpened():
     print("Unable to read camera feed")
@@ -73,10 +74,6 @@ res = []
 while (True):
     ret, frame = cap.read()
 
-    """
-    if frame.shape[0] > frame.shape[1]:
-        frame = utils.rotate(frame)
-    """
 
     if rectify_image:
         frame = utils.correct_distortion(frame, frame_height, frame_width)
@@ -94,6 +91,8 @@ while (True):
 
         # CROP
         outs, masks, green = detect.cropping_frame(frame, hulls, src_mask)
+
+
 
         # orientamento sx/dx
         sx = True
@@ -131,6 +130,7 @@ while (True):
 
                 # RECTIFICATION
                 text, room, warped, score = rectify.detectKeyPoints(outs[idx], local_orientation)
+
                 if room != "0":
                     tmp = room
 
@@ -150,7 +150,7 @@ while (True):
 
                     prediction_warped = prediction.check(SVM, vec_warped)
                     if prediction_warped:
-                        if len(res) == 3:
+                        if len(res) >= 3:
                             res.pop(0)
                         res.append({"before": outs[idx], "after": warped})
                         utils.write_local(text, n_frame, n_quadro, warped)
@@ -173,6 +173,9 @@ while (True):
         roi = utils.resize_output(roi)
 
         display = utils.display(tmp, 1080, 1920, frame, roi, res)
+        cv2.imshow("preview output", display)
+
+        print("--> processed frame "+str(n_frame)+"/"+str(total_frame))
 
         k = cv2.waitKey(5) & 0xFF
         if k == ord("q"):
