@@ -5,6 +5,8 @@ import lensfunpy
 from numpy import genfromtxt
 import torch
 from scipy import ndimage
+import ffmpeg
+import os
 
 lista_cvs = './dataset/data.csv'
 feature_csv = './content/feature_vectors.csv'
@@ -303,10 +305,6 @@ def resize_output(frame):
     fxh = H / frame_width
     fxw = W / frame_height
 
-    if fxh > 1 and fxw > 1:
-        fxh = frame_width / H
-        fxw = frame_height / W
-
     if fxw > fxh:
 
         frame = cv2.resize(frame, None, fx=fxh, fy=fxh)
@@ -315,15 +313,10 @@ def resize_output(frame):
         frame = cv2.copyMakeBorder(frame, 0, 0, int((W - w1) / 2), int((W - w1) / 2) + int(t), 0)
 
     else:
-        if fxh == 1 and fxw == 1 and rotate:
-            frame = cv2.resize(frame, None, fx=fxh, fy=fxh)
-            w1, h1, _ = frame.shape
-            t = (W - w1) % 2
-            frame = cv2.copyMakeBorder(frame, 0, 0, int((W - w1) / 2), int((W - w1) / 2) + int(t), 0)
 
-        else:
-            frame = cv2.resize(frame, None, fx=fxw, fy=fxw)
-            h1, w1, _ = frame.shape
-            t = (H - h1) % 2
-            frame = cv2.copyMakeBorder(frame, int((H - h1) / 2), int((H - h1) / 2) + int(t), 0, 0, 0)
+        frame = cv2.resize(frame, None, fx=fxw, fy=fxw)
+        h1, w1, _ = frame.shape
+        t = (H - h1) % 2
+        frame = cv2.copyMakeBorder(frame, int((H - h1) / 2), int((H - h1) / 2) + int(t), 0, 0, 0)
     return frame
+

@@ -105,7 +105,7 @@ def rectify_image(rows, cols, img, p):
 
         dst = cv2.warpPerspective(img, M, (W, H))
 
-    except ZeroDivisionError:
+    except Exception:
         return 0
 
     return dst
