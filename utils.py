@@ -59,8 +59,8 @@ def drawLabel(w, h, x, y, text, frame):
         fin = fin + letter + " "
 
     for i, line in enumerate(fin.split('\n')):
-        y = y + 20
-        cv2.putText(frame, line, (x + 20, y), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 0), 2)
+        y = y + 25
+        cv2.putText(frame, line, (x + 20, y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
     return
 
 
@@ -261,9 +261,10 @@ def check_inside(text, rects, dict):
         if text != "quadro" and d['texts'] != "quadro":
             score1 = [int(s) for s in text.split() if s.isdigit()]
             score2 = [int(s) for s in d['texts'].split() if s.isdigit()]
-            if (isInside(rects, d['rects']) and score1[0] <= score2[0]) or \
-                    (isOutside(rects, d['rects']) and score1[0] <= score2[0]):
+            if (isInside(rects, d['rects']) and score1[0] <= score2[0]):
                 index.append(idx)
+            elif (isOutside(rects, d['rects']) and score1[0] >= score2[0]):
+                res = False
 
     for i in reversed(index):
         dict.pop(i)
