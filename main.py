@@ -50,7 +50,8 @@ scaler = transforms.Resize((224, 224))
 normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 to_tensor = transforms.ToTensor()
 
-cap = cv2.VideoCapture(video)
+video1 = "./videos/video_secondo.mp4"
+cap = cv2.VideoCapture(video1)
 total_frame = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
 if not cap.isOpened():
@@ -59,7 +60,7 @@ if not cap.isOpened():
 frame_width = int(cap.get(3))
 frame_height = int(cap.get(4))
 
-out = cv2.VideoWriter('outpy.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30, (frame_width, frame_height))
+out = cv2.VideoWriter('output.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30, (frame_width, frame_height))
 
 dirname = 'rectifications'
 
@@ -73,7 +74,6 @@ res = []
 
 while (True):
     ret, frame = cap.read()
-
 
     if rectify_image:
         frame = utils.correct_distortion(frame, frame_height, frame_width)
@@ -91,8 +91,6 @@ while (True):
 
         # CROP
         outs, masks, green = detect.cropping_frame(frame, hulls, src_mask)
-
-
 
         # orientamento sx/dx
         sx = True
@@ -173,9 +171,9 @@ while (True):
         roi = utils.resize_output(roi)
 
         display = utils.display(tmp, 1080, 1920, frame, roi, res)
-        cv2.imshow("preview output", display)
+        cv2.imshow("PREVIEW", display)
 
-        print("--> processed frame "+str(n_frame)+"/"+str(total_frame))
+        print("--> processed frame " + str(n_frame) + "/" + str(total_frame))
 
         k = cv2.waitKey(5) & 0xFF
         if k == ord("q"):

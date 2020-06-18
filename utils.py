@@ -184,9 +184,7 @@ def display(tmp, fh, fw, frame, roi, res):
         fxh = (fh - 20) / h
         fxw = (fw - 20) / w
 
-
         if fxw > fxh:
-
             comb = cv2.resize(comb, None, fx=fxh, fy=fxh)
             h, w, _ = comb.shape
             t = ((fw - 20) - w) % 2
@@ -228,24 +226,43 @@ def check_inside(text, rects, dict):
     index = []
     res = True
     for idx, d in enumerate(dict):
+        '''
+        SE il nuovo quadro è contenuto in uno in dict che nome -quadro-
+            SE il nuovo quadro ha nome -segnato-, ALLORA rimuove quello in dict
+            ALTRIMENTI non aggiungo il nuovo quadro
+        '''
         if isInside(rects, d['rects']) and d['texts'] == "quadro":
             if text != "quadro":
                 index.append(idx)
             else:
                 res = False
 
+        '''
+        SE il nuovo quadro con nome -quadro- contiene uno in dict 
+            SE il quadro in dict ha nome -segnato-, ALLORA non aggiungo il nuovo
+            ALTRIMENTI rimuove quello in dict
+        '''
         if isOutside(rects, d['rects']) and text == "quadro":
             if d['texts'] != "quadro":
                 res = False
             else:
                 index.append(idx)
 
+        '''
+        SE il nuovo quadro e quello in dict hanno nome -segnato-
+            SE il nuovo quadro è contenuto in uno in dict ed ha score minore, OPPURE 
+                il nuovo quadro contiene uno in dict ed ha score minore    
+            ALLORA tolgo quello in dict
+            
+            ALTRIMENTI non aggiungo il nuovo
+        '''
         if text != "quadro" and d['texts'] != "quadro":
             score1 = [int(s) for s in text.split() if s.isdigit()]
             score2 = [int(s) for s in d['texts'].split() if s.isdigit()]
-            if isInside(rects, d['rects']) and score1[0] > score2[0]:
+            if (isInside(rects, d['rects']) and score1[0] <= score2[0]) or \
+                    (isOutside(rects, d['rects']) and score1[0] <= score2[0]):
                 index.append(idx)
-            elif isOutside(rects, d['rects']) and score1[0] > score2[0]:
+            else:
                 res = False
 
     for i in reversed(index):
@@ -254,8 +271,8 @@ def check_inside(text, rects, dict):
     return res
 
 
-def isInside(new, rects):
-    x1, y1, w, h = rects
+def isInside(new, old):
+    x1, y1, w, h = old
     x2, y2 = x1 + w, y1 + h
     X, Y, W, H = new
     if (x1 < X < x2) and (x1 < (X + W) < x2) and (y1 < Y < y2) and (y1 < (Y + H) < y2):
@@ -263,10 +280,10 @@ def isInside(new, rects):
     return False
 
 
-def isOutside(new, rects):
+def isOutside(new, old):
     x1, y1, w, h = new
     x2, y2 = x1 + w, y1 + h
-    X, Y, W, H = rects
+    X, Y, W, H = old
     if (x1 < X < x2) and (x1 < (X + W) < x2) and (y1 < Y < y2) and (y1 < (Y + H) < y2):
         return True
     return False
@@ -286,6 +303,10 @@ def resize_output(frame):
     fxh = H / frame_width
     fxw = W / frame_height
 
+    if fxh > 1 and fxw > 1:
+        fxh = frame_width / H
+        fxw = frame_height / W
+
     if fxw > fxh:
 
         frame = cv2.resize(frame, None, fx=fxh, fy=fxh)
@@ -294,8 +315,15 @@ def resize_output(frame):
         frame = cv2.copyMakeBorder(frame, 0, 0, int((W - w1) / 2), int((W - w1) / 2) + int(t), 0)
 
     else:
-        frame = cv2.resize(frame, None, fx=fxw, fy=fxw)
-        h1, w1, _ = frame.shape
-        t = (H - h1) % 2
-        frame = cv2.copyMakeBorder(frame, int((H - h1) / 2), int((H - h1) / 2) + int(t), 0, 0, 0)
+        if fxh == 1 and fxw == 1 and rotate:
+            frame = cv2.resize(frame, None, fx=fxh, fy=fxh)
+            w1, h1, _ = frame.shape
+            t = (W - w1) % 2
+            frame = cv2.copyMakeBorder(frame, 0, 0, int((W - w1) / 2), int((W - w1) / 2) + int(t), 0)
+
+        else:
+            frame = cv2.resize(frame, None, fx=fxw, fy=fxw)
+            h1, w1, _ = frame.shape
+            t = (H - h1) % 2
+            frame = cv2.copyMakeBorder(frame, int((H - h1) / 2), int((H - h1) / 2) + int(t), 0, 0, 0)
     return frame
