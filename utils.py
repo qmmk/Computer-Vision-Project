@@ -264,8 +264,6 @@ def check_inside(text, rects, dict):
             if (isInside(rects, d['rects']) and score1[0] <= score2[0]) or \
                     (isOutside(rects, d['rects']) and score1[0] <= score2[0]):
                 index.append(idx)
-            else:
-                res = False
 
     for i in reversed(index):
         dict.pop(i)

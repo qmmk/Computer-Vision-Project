@@ -62,6 +62,6 @@ def check_inside(person, rects):
         x1, y1, w, h = r['rects']
         x2, y2 = x1 + w, y1 + h
         X, Y, W, H = person
-        if (x1 < X < x2) and (x1 < (X + W) < x2) and (y1 < Y < y2) and (y1 < (Y + H) < y2):
+        if (x1 <= X <= x2) and (x1 <= (X + W) <= x2) and (y1 <= Y <= y2) and (y1 <= (Y + H) <= y2):
             return False
     return True

@@ -6,7 +6,7 @@ import torch
 
 
 def setup():
-    bankdata = pd.read_csv("./dataset/dataset_SVM_v3.csv")
+    bankdata = pd.read_csv("./dataset/dataset_SVM_v4.csv")
 
     X = bankdata.drop('class', axis=1)
     y = bankdata['class']
