@@ -181,8 +181,7 @@ while (True):
         out.write(display)
 
         cv2.imshow("PREVIEW", display)
-        cv2.waitKey()
-        cv2.destroyAllWindows()
+
 
         n_frame += 1
 
