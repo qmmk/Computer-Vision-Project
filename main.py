@@ -50,7 +50,6 @@ scaler = transforms.Resize((224, 224))
 normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 to_tensor = transforms.ToTensor()
 
-
 cap = cv2.VideoCapture(video)
 frame_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
@@ -181,7 +180,6 @@ while (True):
         out.write(display)
 
         cv2.imshow("PREVIEW", display)
-
 
         n_frame += 1
 

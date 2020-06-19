@@ -222,64 +222,14 @@ def stack(img1, img2):
     return img1, img2
 
 
-def check_inside(text, rects, dict):
-    index = []
-    res = True
-    for idx, d in enumerate(dict):
-        '''
-        SE il nuovo quadro è contenuto in uno in dict che nome -quadro-
-            SE il nuovo quadro ha nome -segnato-, ALLORA rimuove quello in dict
-            ALTRIMENTI non aggiungo il nuovo quadro
-        '''
-        if isInside(rects, d['rects']) and d['texts'] == "quadro":
-            if text != "quadro":
-                index.append(idx)
-            else:
-                res = False
-
-        '''
-        SE il nuovo quadro con nome -quadro- contiene uno in dict 
-            SE il quadro in dict ha nome -segnato-, ALLORA non aggiungo il nuovo
-            ALTRIMENTI rimuove quello in dict
-        '''
-        if isOutside(rects, d['rects']) and text == "quadro":
-            if d['texts'] != "quadro":
-                res = False
-            else:
-                index.append(idx)
-
-        '''
-        SE il nuovo quadro e quello in dict hanno nome -segnato-
-            SE il nuovo quadro è contenuto in uno in dict ed ha score minore, OPPURE 
-                il nuovo quadro contiene uno in dict ed ha score minore    
-            ALLORA tolgo quello in dict
-            
-            ALTRIMENTI non aggiungo il nuovo
-        '''
-        if text != "quadro" and d['texts'] != "quadro":
-            score1 = [int(s) for s in text.split() if s.isdigit()]
-            score2 = [int(s) for s in d['texts'].split() if s.isdigit()]
-            if (isInside(rects, d['rects']) and score1[0] <= score2[0]) or \
-                    (isOutside(rects, d['rects']) and score1[0] <= score2[0]):
-                index.append(idx)
-            elif (isOutside(rects, d['rects']) and score1[0] >= score2[0]) or \
-                    (isInside(rects, d['rects']) and score1[0] >= score2[0]):
-                res = False
-
-    for i in reversed(index):
-        dict.pop(i)
-
-    return res,dict
-
-
 def check_dict(dict):
     wrong_list = []
     dict_new = []
 
-    for n_d,d in enumerate(dict):
-        for n_f,f in enumerate(dict):
+    for n_d, d in enumerate(dict):
+        for n_f, f in enumerate(dict):
             if n_f != n_d:
-                if isInside(d["rects"],f["rects"]):
+                if isInside(d["rects"], f["rects"]):
                     text_d = d["texts"]
                     text_f = f["texts"]
                     if text_d == "quadro" and text_f == "quadro":
@@ -296,13 +246,11 @@ def check_dict(dict):
                         else:
                             wrong_list.append(n_d)
 
-
     for i in range(len(dict)):
         if i not in wrong_list:
             dict_new.append(dict[i])
 
     return dict_new
-
 
 
 def isInside(new, old):
@@ -312,23 +260,6 @@ def isInside(new, old):
     if (x1 <= X <= x2) and (x1 <= (X + W) <= x2) and (y1 <= Y <= y2) and (y1 <= (Y + H) <= y2):
         return True
     return False
-
-
-
-
-def isOutside(new, old):
-    x1, y1, w, h = new
-    x2, y2 = x1 + w, y1 + h
-    X, Y, W, H = old
-    if (x1 <= X <= x2) and (x1 <= (X + W) <= x2) and (y1 <= Y <= y2) and (y1 <= (Y + H) <= y2):
-        return True
-    return False
-
-
-def rotate(frame):
-    # rotation angle in degree
-    frame = ndimage.rotate(frame, 270)
-    return frame
 
 
 def resize_output(frame):
@@ -353,4 +284,3 @@ def resize_output(frame):
         t = (H - h1) % 2
         frame = cv2.copyMakeBorder(frame, int((H - h1) / 2), int((H - h1) / 2) + int(t), 0, 0, 0)
     return frame
-
