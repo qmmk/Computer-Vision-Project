@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-import ffmpeg
 
 # Load Yolo
 config = "./content/yolov3.cfg"

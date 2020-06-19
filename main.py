@@ -11,7 +11,6 @@ from torchvision import transforms
 from PIL import Image
 import prediction
 
-
 SVM = prediction.setup()
 
 no_gabor = True
@@ -51,8 +50,8 @@ scaler = transforms.Resize((224, 224))
 normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 to_tensor = transforms.ToTensor()
 
-
-cap = cv2.VideoCapture(video)
+video1 = "./videos/video_secondo.mp4"
+cap = cv2.VideoCapture(video1)
 frame_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
 if not cap.isOpened():
@@ -82,6 +81,7 @@ while (True):
             frame = utils.correct_distortion(frame, frame_height, frame_width)
 
         dict = []
+        check = True
 
         roi = np.zeros_like(frame)
 
@@ -155,7 +155,6 @@ while (True):
                         res.append({"before": outs[idx], "after": warped})
                         utils.write_local(text, n_frame, n_quadro, warped)
 
-                check = True
                 if dict is not None:
                     check = utils.check_inside(text, rects[idx], dict)
 
@@ -174,8 +173,7 @@ while (True):
 
         display = utils.display(tmp, 1080, 1920, frame, roi, res)
 
-
-        print("--> processed frame number :" + str(n_frame)+ "/" +str(frame_length))
+        print("--> processed frame number :" + str(n_frame) + "/" + str(frame_length))
 
         k = cv2.waitKey(5) & 0xFF
         if k == ord("q"):
@@ -184,7 +182,7 @@ while (True):
         # Write the frame into the file 'output.avi'
         out.write(display)
 
-        cv2.imshow("PREVIEW", display)
+        # cv2.imshow("PREVIEW", display)
 
         n_frame += 1
 

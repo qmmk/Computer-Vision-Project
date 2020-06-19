@@ -5,8 +5,6 @@ import lensfunpy
 from numpy import genfromtxt
 import torch
 from scipy import ndimage
-import ffmpeg
-import os
 
 lista_cvs = './dataset/data.csv'
 feature_csv = './content/feature_vectors.csv'
@@ -236,7 +234,7 @@ def check_inside(text, rects, dict):
         if isInside(rects, d['rects']) and d['texts'] == "quadro":
             if text != "quadro":
                 index.append(idx)
-            else:
+            #else:
                 res = False
 
         '''
@@ -261,9 +259,11 @@ def check_inside(text, rects, dict):
         if text != "quadro" and d['texts'] != "quadro":
             score1 = [int(s) for s in text.split() if s.isdigit()]
             score2 = [int(s) for s in d['texts'].split() if s.isdigit()]
-            if (isInside(rects, d['rects']) and score1[0] <= score2[0]):
+            if (isInside(rects, d['rects']) and score1[0] <= score2[0]) or \
+                    (isOutside(rects, d['rects']) and score1[0] <= score2[0]):
                 index.append(idx)
-            elif (isOutside(rects, d['rects']) and score1[0] >= score2[0]):
+            elif (isOutside(rects, d['rects']) and score1[0] >= score2[0]) or \
+                    (isInside(rects, d['rects']) and score1[0] >= score2[0]):
                 res = False
 
     for i in reversed(index):
