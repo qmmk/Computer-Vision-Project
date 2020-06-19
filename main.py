@@ -50,8 +50,8 @@ scaler = transforms.Resize((224, 224))
 normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 to_tensor = transforms.ToTensor()
 
-video1 = "./videos/video_secondo.mp4"
-cap = cv2.VideoCapture(video1)
+
+cap = cv2.VideoCapture(video)
 frame_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
 if not cap.isOpened():
@@ -155,11 +155,9 @@ while (True):
                         res.append({"before": outs[idx], "after": warped})
                         utils.write_local(text, n_frame, n_quadro, warped)
 
-                if dict is not None:
-                    check = utils.check_inside(text, rects[idx], dict)
+                dict.append({'texts': text, 'rects': rects[idx]})
 
-                if check:
-                    dict.append({'texts': text, 'rects': rects[idx]})
+        dict = utils.check_dict(dict)
 
         # PERSON
         dict = yolo.detect_person(frame, frame_height, frame_width, dict)
@@ -182,7 +180,9 @@ while (True):
         # Write the frame into the file 'output.avi'
         out.write(display)
 
-        # cv2.imshow("PREVIEW", display)
+        cv2.imshow("PREVIEW", display)
+        cv2.waitKey()
+        cv2.destroyAllWindows()
 
         n_frame += 1
 
