@@ -147,8 +147,10 @@ def chekcWithSIFT(img1, img2, sx):
 
         matchesMask = mask.ravel().tolist()
 
+
         if M is None:
             return False, 0, 0, 0, 0
+
 
         score = 0
         for i in good:
@@ -195,7 +197,7 @@ def ORB(im1, im2):
 
     if len(good) >= ngood:
         score = sum(x.distance for x in good[:ngood])
-        if score < 350:  # 350
+        if score < 340:  # 350
             return True, good, retkp1, retkp2, score
         else:
             return False, 0, 0, 0, 100000
